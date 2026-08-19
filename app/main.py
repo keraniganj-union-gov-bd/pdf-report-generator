@@ -13,17 +13,8 @@ from typing import Optional
 
 from fastapi import Cookie, Depends
 from fastapi.responses import JSONResponse
-16  from sqlalchemy import create_engine, text
-17  from sqlalchemy.dialects import registry
-18  import sqlalchemy_cockroachdb
-19
-20  registry.register(
-21      "cockroachdb",
-22      "sqlalchemy_cockroachdb",
-23      "CockroachDBDialect",
-24  )
-25
-26  BASE = Path(__file__).resolve().parent.parent
+from sqlalchemy import create_engine, text
+BASE = Path(__file__).resolve().parent.parent
 
 DATA = BASE / "data"
 GENERATED = BASE / "generated"

@@ -13,9 +13,18 @@ from typing import Optional
 
 from fastapi import Cookie, Depends
 from fastapi.responses import JSONResponse
-from sqlalchemy import create_engine, text
-import sqlalchemy_cockroachdb
-BASE = Path(__file__).resolve().parent.parent
+16  from sqlalchemy import create_engine, text
+17  from sqlalchemy.dialects import registry
+18  import sqlalchemy_cockroachdb
+19
+20  registry.register(
+21      "cockroachdb",
+22      "sqlalchemy_cockroachdb",
+23      "CockroachDBDialect",
+24  )
+25
+26  BASE = Path(__file__).resolve().parent.parent
+
 DATA = BASE / "data"
 GENERATED = BASE / "generated"
 STATIC = BASE / "static"
@@ -63,13 +72,6 @@ LABELS = {
 # Uses CockroachDB/PostgreSQL when DATABASE_URL is set; SQLite otherwise.
 # The existing V59 SQLite development layer is retained for compatibility.
 # ---------------------------------------------------------------------------
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
-
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
-
-if DATABASE_URL.startswith("postgresql://"):
-    DATABASE_URL = "cockroachdb://" + DATABASE_URL[len("postgresql://"):]
 
 if DATABASE_URL:
     PROD_DB_URL = DATABASE_URL

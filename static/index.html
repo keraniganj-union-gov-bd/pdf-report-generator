@@ -170,7 +170,7 @@ async function setBackground(){
 }
 async function loadBg(){const x=await (await fetch("/api/admin/background")).json();$("bgStatus").textContent=x.background.name?"Current Default: "+x.background.name:"No default background set"}
 async function savePrice(){
- const fd=new FormData();fd.append("web_price",$("price").value);const r=await fetch("/api/admin/price",{method:"POST",body:fd);const x=await r.json();if(!r.ok)alert(x.detail||"Failed");loadAdmin()
+ const fd=new FormData();fd.append("web_price",$("#price").value);const r=await fetch("/api/admin/price",{method:"POST",body:fd});const x=await r.json();if(!r.ok)alert(x.detail||"Failed");
 }
 boot();
 </script>

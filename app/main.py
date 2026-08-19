@@ -14,7 +14,7 @@ from typing import Optional
 from fastapi import Cookie, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
-
+import sqlalchemy_cockroachdb
 BASE = Path(__file__).resolve().parent.parent
 DATA = BASE / "data"
 GENERATED = BASE / "generated"

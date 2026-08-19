@@ -64,8 +64,13 @@ LABELS = {
 # The existing V59 SQLite development layer is retained for compatibility.
 # ---------------------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = "cockroachdb://" + DATABASE_URL[len("postgresql://"):]
+
 if DATABASE_URL:
     PROD_DB_URL = DATABASE_URL
 else:

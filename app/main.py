@@ -75,8 +75,13 @@ LABELS = {
 
 if DATABASE_URL:
     PROD_DB_URL = DATABASE_URL
+
+    if PROD_DB_URL.startswith("postgresql://"):
+        PROD_DB_URL = "cockroachdb+psycopg2://" + PROD_DB_URL[len("postgresql://"):]
+
 else:
     PROD_DB_URL = f"sqlite:///{(DATA / 'web.sqlite3').as_posix()}"
+
 
 prod_engine = create_engine(
     PROD_DB_URL,

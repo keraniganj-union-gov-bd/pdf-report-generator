@@ -8,3 +8,4 @@ reportlab
 pypdf
 SQLAlchemy==2.0.43
 psycopg2-binary==2.9.9
+sqlalchemy-cockroachdb==2.0.4

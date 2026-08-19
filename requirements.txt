@@ -6,6 +6,6 @@ qrcode==8.2
 Pillow==11.3.0
 reportlab
 pypdf
-SQLAlchemy==2.0.43
+SQLAlchemy==2.0.47
 psycopg2-binary==2.9.9
 sqlalchemy-cockroachdb==2.0.4

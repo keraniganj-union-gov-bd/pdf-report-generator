@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PDF Report Generator</title>
+<style>
+:root{--blue:#1677e8;--sky:#eaf6ff;--sky2:#c2e4eb;--ink:#17344f;--muted:#6e8194;--line:#dce8f2;--white:#fff;--red:#c94b4b}
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI","Noto Sans Bengali",Arial,sans-serif;background:#f5faff;color:var(--ink)}
+button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+.login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#eaf6ff,#fff)}
+.login-card{width:min(420px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 12px 40px rgba(30,90,140,.12)}
+.logo{width:52px;height:52px;border-radius:15px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:26px;margin-bottom:14px}
+h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}.field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#49637a}.field input{width:100%;padding:11px 12px;border:1px solid #d3e1ec;border-radius:10px;outline:none}.field input:focus{border-color:#67adf0;box-shadow:0 0 0 3px #eaf6ff}
+.btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.full{width:100%;margin-top:5px}
+.error{margin-top:10px;background:#fff1f1;border:1px solid #ffd8d8;color:#9f3434;border-radius:10px;padding:10px;font-size:12px}
+.app{min-height:100vh;display:flex}.side{width:240px;position:fixed;left:0;top:0;bottom:0;background:#fff;border-right:1px solid var(--line);z-index:20}.brand{padding:22px;background:linear-gradient(145deg,#1675e8,#55acf4);color:#fff}.brand b{font-size:18px}.brand small{display:block;margin-top:4px;opacity:.9}.nav{padding:14px}.nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;color:#526a80;font-weight:700;margin:3px 0}.nav button:hover,.nav button.active{background:var(--sky);color:var(--blue)}.main{margin-left:240px;flex:1}.top{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 28px;position:sticky;top:0;z-index:10}.top strong{font-size:17px}.badge{background:var(--sky);color:#175f9b;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:750}.content{max-width:1150px;margin:auto;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;margin-bottom:17px;box-shadow:0 8px 25px rgba(30,90,140,.07)}.card h2{font-size:18px;margin:0 0 4px}.card p{margin:0 0 16px;color:var(--muted);font-size:12px}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.row button{flex:0 0 auto}.status{margin-top:12px;padding:11px;border-radius:10px;background:#f2f9ff;border:1px solid #d8ebfa;font-size:12px;white-space:pre-wrap}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.form-grid .wide{grid-column:1/-1}.form-grid input{width:100%;padding:9px 11px;border:1px solid #d5e2ec;border-radius:9px}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf2f6}.table-wrap{overflow:auto}.tbl{width:100%;border-collapse:collapse;font-size:12px}.tbl th,.tbl td{padding:9px;border-bottom:1px solid #e6eef4;text-align:left;white-space:nowrap}.tbl th{background:#f5faff}.chip{background:var(--sky2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:800;color:#28576c}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#f8fcff;border:1px solid #dcecf7;border-radius:12px;padding:13px}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{font-size:19px}.preview{background:#f8fcff;border:1px dashed #bcd8eb;border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;max-height:260px;overflow:auto}
+@media(max-width:800px){.side{width:210px}.main{margin-left:210px}.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}}
+@media(max-width:650px){.side{display:none}.main{margin-left:0}.row{flex-direction:column;align-items:stretch}.top{padding:0 14px}.content{padding:12px}}
+</style>
+</head>
+<body>
+<div id="login" class="login">
+  <div class="login-card">
+    <div class="logo">▣</div>
+    <h1>PDF Report Generator</h1>
+    <div class="muted">Customer / Admin Login</div>
+    <form onsubmit="login(event)">
+      <div class="field"><label>Email</label><input id="email" type="email" required></div>
+      <div class="field"><label>Password</label><input id="password" type="password" required></div>
+      <button class="btn full">Login</button>
+    </form>
+    <div id="loginError" class="error hidden"></div>
+    <div class="muted" style="margin-top:14px">Customer account Admin panel থেকে তৈরি করা হবে।</div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+<aside class="side">
+  <div class="brand"><b>PDF Report Generator</b><small>Web Version · V59</small></div>
+  <div class="nav" id="nav"></div>
+  <div style="padding:14px"><button class="btn secondary" style="width:100%" onclick="logout()">Logout</button></div>
+</aside>
+<main class="main">
+<header class="top"><strong id="title">Dashboard</strong><div><span class="badge">Balance: <b id="balance">0</b></span></div></header>
+<div class="content">
+
+<section id="customerHome" class="card page">
+  <h2>PDF তৈরি করুন</h2><p>Customer শুধু Source PDF upload করবে। Default Background system নিজে ব্যবহার করবে।</p>
+  <div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div>
+  <div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div>
+</section>
+
+<section id="customerData" class="card page hidden">
+  <h2>তথ্য যাচাই</h2><p>Source PDF থেকে পাওয়া তথ্য এখানে দেখা যাবে। PDF তৈরি করার আগে প্রয়োজন হলে edit করতে পারবেন।</p>
+  <div id="dataForm" class="form-grid"></div>
+  <div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div>
+</section>
+
+<section id="history" class="card page hidden">
+  <h2>Download History</h2><p>আপনার তৈরি করা শেষ 100টি report।</p>
+  <div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>NID</th><th>File</th><th>Charge</th><th>Date</th><th></th></tr></thead><tbody id="historyBody"></tbody></table></div>
+</section>
+
+<section id="adminDashboard" class="card page hidden">
+  <h2>Admin Dashboard</h2><p>Customer, balance, pricing এবং default background manage করুন।</p>
+  <div class="grid3"><div class="stat"><small>Customers</small><b id="customerCount">0</b></div><div class="stat"><small>PDF Price</small><b id="adminPrice">0</b></div><div class="stat"><small>Default Background</small><b id="bgName">None</b></div></div>
+</section>
+
+<section id="customers" class="card page hidden">
+  <h2>Customer Management</h2><p>নতুন customer account তৈরি এবং balance manage করুন।</p>
+  <div class="form-grid">
+    <div class="field"><label>Customer Email</label><input id="newEmail" type="email"></div>
+    <div class="field"><label>Initial Balance</label><input id="newCredits" type="number" min="0" value="0"></div>
+    <div class="field"><label>Password</label><input id="newPassword" type="password"></div>
+  </div>
+  <button class="btn" onclick="createCustomer()">Create Customer</button>
+  <div id="adminStatus" class="status"></div>
+  <div class="table-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Email</th><th>Balance</th><th>Status</th><th>Add/Subtract</th></tr></thead><tbody id="customerBody"></tbody></table></div>
+</section>
+
+<section id="background" class="card page hidden">
+  <h2>Default Background</h2><p>Admin একবার background সেট করবে। Customer-এর background upload করার প্রয়োজন নেই।</p>
+  <div class="row"><input id="bg" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><button class="btn" onclick="setBackground()">Upload & Set Default</button></div>
+  <div id="bgStatus" class="status"></div>
+</section>
+
+<section id="pricing" class="card page hidden">
+  <h2>Pricing</h2><p>Customer প্রতি PDF generation-এর charge।</p>
+  <div class="row"><input id="price" type="number" min="0"><button class="btn" onclick="savePrice()">Save Price</button></div>
+</section>
+
+</div></main></div>
+
+<script>
+let me=null,data={};
+const fields=[
+["national_id","জাতীয় পরিচয়পত্র নম্বর"],["pin","পিন নম্বর"],["voter_no","ভোটার নম্বর"],["form_no","ফরম নম্বর"],["serial_no","সিরিয়াল নম্বর"],["voter_area","ভোটার এরিয়া"],
+["name_bn","নাম (বাংলা)"],["name_en","নাম (ইংরেজী)"],["dob","জন্ম তারিখ"],["father","পিতার নাম"],["mother","মাতার নাম"],["spouse","স্বামী/স্ত্রীর নাম"],
+["gender","লিঙ্গ"],["education","শিক্ষাগত যোগ্যতা"],["occupation","পেশা"],["blood_group","রক্তের গ্রুপ"],["birth_place","জন্মস্থান"],
+["present_address","বর্তমান ঠিকানা"],["permanent_address","স্থায়ী ঠিকানা"]
+];
+function $(id){return document.getElementById(id)}
+function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));$(id).classList.remove("hidden")}
+function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="customers")loadCustomers();if(id==="background")loadBg();if(id==="pricing")loadAdmin();};return b}
+function buildNav(){
+ const n=$("nav");n.innerHTML="";
+ if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Customers","customers"),navItem("Default Background","background"),navItem("Pricing","pricing"))}
+ n.append(navItem("Generate PDF",me.role==="admin"?"customerHome":"customerHome"),navItem("Download History","history"));
+}
+async function login(e){
+ e.preventDefault();$("loginError").classList.add("hidden");
+ const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);
+ const r=await fetch("/api/auth/login",{method:"POST",body:fd});const x=await r.json();
+ if(!r.ok){$("loginError").textContent=x.detail||"Login failed";$("loginError").classList.remove("hidden");return}
+ await boot();
+}
+async function boot(){
+ const r=await fetch("/api/auth/me");if(!r.ok){$("login").classList.remove("hidden");$("app").classList.add("hidden");return}
+ const x=await r.json();me=x.user;$("balance").textContent=x.balance;
+ $("login").classList.add("hidden");$("app").classList.remove("hidden");buildNav();show("customerHome");
+}
+async function logout(){await fetch("/api/auth/logout",{method:"POST"});location.reload()}
+function setStatus(t){$("cstatus").textContent=t}
+async function parseSource(){
+ const f=$("source").files[0];if(!f)return setStatus("Source PDF নির্বাচন করুন।");
+ const fd=new FormData();fd.append("file",f);setStatus("তথ্য বের করা হচ্ছে…");
+ const r=await fetch("/api/customer/parse",{method:"POST",body:fd});const x=await r.json();
+ if(!r.ok)return setStatus(x.detail||"Parse failed");data=x.data;renderData();show("customerData");$("title").textContent="তথ্য যাচাই";setStatus("তথ্য যাচাই সম্পন্ন।");
+}
+function renderData(){
+ const box=$("dataForm");box.innerHTML="";
+ fields.forEach(([k,l])=>{let d=document.createElement("div");d.className="field"+(k.includes("address")?" wide":"");d.innerHTML=`<label>${l}</label><input data-k="${k}" value="${String(data[k]||"").replace(/"/g,"&quot;")}">`;box.appendChild(d)});
+}
+function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
+function clearData(){data={};$("dataForm").innerHTML="";show("customerHome")}
+async function generatePdf(){
+ collect();if(!data.national_id)return alert("NID number required");
+ const fd=new FormData();fd.append("data_json",JSON.stringify(data));setStatus("PDF তৈরি হচ্ছে…");
+ const r=await fetch("/api/customer/generate",{method:"POST",body:fd});const x=await r.json();
+ if(!r.ok)return alert(x.detail||"PDF generation failed");
+ $("balance").textContent=x.balance;
+ const p=await fetch(x.download);const blob=await p.blob();const u=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=u;a.download="V1_"+String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")+".pdf";a.click();URL.revokeObjectURL(u);
+ alert("PDF তৈরি হয়েছে। Charge: "+x.charged);loadHistory();
+}
+async function loadHistory(){
+ const r=await fetch("/api/customer/history");if(!r.ok)return;const x=await r.json();
+ $("historyBody").innerHTML=x.history.map(h=>`<tr><td>${h.id}</td><td>${h.nid||""}</td><td>${h.filename}</td><td>${h.charged}</td><td>${h.created_at}</td><td><a href="/api/customer/history/${h.id}/download" target="_blank">Download</a></td></tr>`).join("");
+}
+async function loadAdmin(){
+ const r=await fetch("/api/admin/customers");if(!r.ok)return;const x=await r.json();
+ $("customerCount").textContent=x.customers.length;$("adminPrice").textContent=(await (await fetch("/api/customer/status")).json()).price;
+ const bg=await (await fetch("/api/admin/background")).json();$("bgName").textContent=bg.background.name||"None";$("price").value=(await (await fetch("/api/customer/status")).json()).price;
+}
+async function createCustomer(){
+ const fd=new FormData();fd.append("email",$("newEmail").value);fd.append("password",$("newPassword").value);fd.append("credits",$("newCredits").value);
+ const r=await fetch("/api/admin/customers",{method:"POST",body:fd});const x=await r.json();$("adminStatus").textContent=r.ok?"Customer created.":(x.detail||"Failed");if(r.ok){$("newEmail").value="";$("newPassword").value="";loadCustomers();loadAdmin()}
+}
+async function loadCustomers(){
+ const r=await fetch("/api/admin/customers");if(!r.ok)return;const x=await r.json();
+ $("customerCount").textContent=x.customers.length;
+ $("customerBody").innerHTML=x.customers.map(c=>`<tr><td>${c.email}</td><td>${c.credits}</td><td>${c.active?"Active":"Disabled"}</td><td><button class="btn secondary" onclick="credit(${c.id},10)">+10</button> <button class="btn danger" onclick="credit(${c.id},-10)">-10</button></td></tr>`).join("");
+}
+async function credit(id,amount){const fd=new FormData();fd.append("amount",amount);const r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){const x=await r.json();alert(x.detail||"Failed")}loadCustomers()}
+async function setBackground(){
+ const f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");
+ const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd);const x=await r.json();
+ $("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed");loadAdmin();
+}
+async function loadBg(){const x=await (await fetch("/api/admin/background")).json();$("bgStatus").textContent=x.background.name?"Current Default: "+x.background.name:"No default background set"}
+async function savePrice(){
+ const fd=new FormData();fd.append("web_price",$("price").value);const r=await fetch("/api/admin/price",{method:"POST",body:fd);const x=await r.json();if(!r.ok)alert(x.detail||"Failed");loadAdmin()
+}
+boot();
+</script>
+</body></html>

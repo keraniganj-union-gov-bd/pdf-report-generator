@@ -7,4 +7,4 @@ Pillow==11.3.0
 reportlab
 pypdf
 SQLAlchemy==2.0.43
-psycopg[binary]==3.2.9
+psycopg2-binary==2.9.9

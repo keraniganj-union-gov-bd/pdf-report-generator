@@ -165,7 +165,7 @@ async function loadCustomers(){
 async function credit(id,amount){const fd=new FormData();fd.append("amount",amount);const r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){const x=await r.json();alert(x.detail||"Failed")}loadCustomers()}
 async function setBackground(){
  const f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");
- const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd);const x=await r.json();
+ const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd});const x=await r.json();
  $("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed");loadAdmin();
 }
 async function loadBg(){const x=await (await fetch("/api/admin/background")).json();$("bgStatus").textContent=x.background.name?"Current Default: "+x.background.name:"No default background set"}

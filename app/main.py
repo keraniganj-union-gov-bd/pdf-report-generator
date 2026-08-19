@@ -63,7 +63,7 @@ LABELS = {
 # Uses CockroachDB/PostgreSQL when DATABASE_URL is set; SQLite otherwise.
 # The existing V59 SQLite development layer is retained for compatibility.
 # ---------------------------------------------------------------------------
-
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if DATABASE_URL:
     PROD_DB_URL = DATABASE_URL
 

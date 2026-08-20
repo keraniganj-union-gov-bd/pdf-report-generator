@@ -7,6 +7,7 @@ import qrcode
 from PIL import Image
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
+from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac
 from typing import Optional
@@ -159,28 +160,6 @@ def prod_init():
                 created_at VARCHAR(40) NOT NULL
             )
         """))
-        c.execute(text("""
-            CREATE TABLE IF NOT EXISTS web_payments (
-                id INTEGER PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                amount INTEGER NOT NULL,
-                credits INTEGER NOT NULL,
-                transaction_id VARCHAR(100) UNIQUE NOT NULL,
-                status VARCHAR(20) NOT NULL DEFAULT 'pending',
-                note TEXT,
-                created_at VARCHAR(40) NOT NULL,
-                verified_at VARCHAR(40)
-            )
-        """))
-        # Profile fields for self-registration.
-        for ddl in [
-            "ALTER TABLE web_users ADD COLUMN full_name VARCHAR(255)",
-            "ALTER TABLE web_users ADD COLUMN mobile VARCHAR(50)"
-        ]:
-            try:
-                c.execute(text(ddl))
-            except Exception:
-                pass
         # Backward-compatible migration for older local web databases.
         try:
             c.execute(text("ALTER TABLE web_generations ADD COLUMN pdf_data TEXT"))
@@ -262,13 +241,23 @@ def prod_charge(user_id: int, amount: int):
         c.execute(text("UPDATE web_wallets SET credits=:b WHERE user_id=:u"), {"b": new, "u": user_id})
         return new
 
-def save_generation(user_id: int, nid: str, filename: str, charged: int, pdf_data_b64: str = ""):
+def save_generation(user_id: int, nid: str, filename: str, charged: int):
+    """Save only generation metadata and keep the latest 5 records per user."""
+    now = datetime.utcnow().isoformat()
     with prod_engine.begin() as c:
         gid = _next_id(c, "web_generations")
         c.execute(text(
             "INSERT INTO web_generations(id,user_id,nid,filename,channel,charged,pdf_data,created_at) "
-            "VALUES(:id,:u,:n,:f,'web',:ch,:pdf,:t)"
-        ), {"id":gid,"u":user_id,"n":nid,"f":filename,"ch":charged,"pdf":pdf_data_b64,"t":datetime.utcnow().isoformat()})
+            "VALUES(:id,:u,:n,:f,'web',:ch,'',:t)"
+        ), {"id":gid,"u":user_id,"n":nid,"f":filename,"ch":charged,"t":now})
+        c.execute(text("""
+            DELETE FROM web_generations
+            WHERE user_id=:u
+              AND id NOT IN (
+                  SELECT id FROM web_generations
+                  WHERE user_id=:u ORDER BY id DESC LIMIT 5
+              )
+        """), {"u":user_id})
 
 
 def set_default_background_db(name: str, mime: str, data_b64: str):
@@ -998,52 +987,24 @@ def selected_background_data_url():
 
 def make_pdf(d):
     job = uuid.uuid4().hex[:12]
-
-    safe_id = re.sub(
-        r"[^0-9A-Za-z_-]",
-        "",
-        str(d.get("national_id") or "report")
-    )
-
-    out = GENERATED / f"V1_{safe_id}.pdf"
+    out = GENERATED / f"V1_{re.sub(r'[^0-9A-Za-z_-]', '', d.get('national_id','report'))}.pdf"
     html_path = GENERATED / f"render_{job}.html"
 
-    # ---------- Images ----------
-    photo_b64 = d.get("photo_b64", "")
-    if photo_b64:
-        photo = (
-            f'<img class="photo" '
-            f'src="data:image/jpeg;base64,{photo_b64}">'
-        )
-    else:
-        photo = '<div class="photo empty">ছবি</div>'
-
-    name_en = d.get("name_en", "")
-    photo_name = (
-        f'<div class="photo-name">{esc(name_en)}</div>'
-        if name_en else ""
+    photo = (
+        f'<img class="photo" src="data:image/jpeg;base64,{d.get("photo_b64","")}">'
+        if d.get("photo_b64") else '<div class="photo empty">ছবি</div>'
     )
-
-    qr_b64 = d.get("qr_b64", "")
+    photo_name = f'<div class="photo-name">{esc(d.get("name_en",""))}</div>' if d.get("name_en") else ""
     qr = (
-        f'<img class="qr" src="data:image/png;base64,{qr_b64}">'
-        if qr_b64 else ""
+        f'<img class="qr" src="data:image/png;base64,{d.get("qr_b64","")}">'
+        if d.get("qr_b64") else ""
     )
-
-    # Background is already converted to a data URL by your existing function.
     bg = selected_background_data_url()
     bg_html = f'<img class="page-bg" src="{bg}">' if bg else ""
 
-    # ---------- Table helper ----------
     def row(label, value):
-        return (
-            f'<tr>'
-            f'<td class="label">{esc(label)}</td>'
-            f'<td class="value">{esc(value)}</td>'
-            f'</tr>'
-        )
+        return f'<tr><td class="label">{esc(label)}</td><td class="value">{esc(value)}</td></tr>'
 
-    # ---------- Data rows ----------
     national_rows = "".join([
         row("জাতীয় পরিচয়পত্র নম্বর", d.get("national_id")),
         row("পিন নম্বর", d.get("pin")),
@@ -1052,7 +1013,6 @@ def make_pdf(d):
         row("সিরিয়াল নম্বর", d.get("serial_no")),
         row("ভোটার এরিয়া", d.get("voter_area")),
     ])
-
     personal_rows = "".join([
         row("নাম (বাংলা)", d.get("name_bn")),
         row("নাম (ইংরেজী)", d.get("name_en")),
@@ -1061,7 +1021,6 @@ def make_pdf(d):
         row("মাতার নাম", d.get("mother")),
         row("স্বামী/স্ত্রীর নাম", d.get("spouse")),
     ])
-
     other_rows = "".join([
         row("লিঙ্গ", d.get("gender")),
         row("শিক্ষাগত যোগ্যতা", d.get("education")),
@@ -1070,396 +1029,109 @@ def make_pdf(d):
         row("জন্মস্থান", d.get("birth_place")),
     ])
 
-    # ---------- HTML ----------
     html_doc = f"""<!doctype html>
 <html lang="bn">
 <head>
 <meta charset="utf-8">
-
 <style>
-
 @font-face {{
   font-family: Bangla;
   src: url('file://{FONT.as_posix()}');
   font-weight:300;
 }}
-
 @font-face {{
   font-family: Bangla;
   src: url('file://{FONT_REGULAR.as_posix()}');
   font-weight:400;
 }}
-
 @font-face {{
   font-family: Bangla;
   src: url('file://{FONT_SEMIBOLD.as_posix()}');
   font-weight:600;
 }}
-
-@page {{
-  size:A4;
-  margin:0;
-}}
-
-* {{
-  box-sizing:border-box;
-}}
-
-html, body {{
-  margin:0;
-  padding:0;
-}}
-
-body {{
-  font-family:Bangla,sans-serif;
-  color:#111;
-  font-size:13px;
-  font-weight:400;
-  line-height:1.24;
-  -webkit-font-smoothing:antialiased;
-  margin:0;
-  padding:2.5in 0.8in 1.2in 2.5in;
-}}
-
-.header,
-.notice,
-.section,
-table,
-.address,
-.footer {{
-  background:rgba(255,255,255,.96);
-  border:0 !important;
-}}
-
-.page-bg {{
-  position:fixed;
-  left:0;
-  top:0;
-  width:210mm;
-  height:297mm;
-  object-fit:fill;
-  opacity:1;
-  z-index:0;
-  pointer-events:none;
-}}
-
-.report-content {{
-  position:relative;
-  z-index:1;
-}}
-
-.header {{
-  padding:7px 10px;
-  text-align:center;
-  margin-bottom:7px;
-}}
-
-h1 {{
-  margin:0;
-  font-size:19px;
-}}
-
-.sub {{
-  font-size:8px;
-  font-weight:bold;
-  margin-top:2px;
-}}
-
-.notice {{
-  margin:5px 0 8px;
-  padding:4px 7px;
-  text-align:center;
-  font-size:8px;
-  font-weight:bold;
-}}
-
-.top {{
-  display:block;
-  position:relative;
-}}
-
-.media {{
-  position:fixed;
-  left:0;
-  top:92mm;
-  width:71.12mm;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  z-index:2;
-}}
-
-.photo-name {{
-  margin-top:2mm;
-  font-family:"Segoe UI","Arial",sans-serif;
-  font-size:14px;
-  font-weight:700;
-  text-align:center;
-  max-width:60mm;
-  word-break:break-word;
-  letter-spacing:.1px;
-}}
-
-.photo {{
-  width:30.48mm;
-  height:auto;
-  max-height:none;
-  object-fit:contain;
-  border:0.6pt solid #777;
-  border-radius:2.2mm;
-}}
-
-.empty {{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}}
-
-.qr {{
-  width:25.4mm;
-  height:25.4mm;
-  margin-top:4mm;
-}}
-
-.section {{
-  margin-top:3px;
-  margin-bottom:1px;
-  background:#c2e4eb;
-  border:0 !important;
-  padding:4px 8px;
-  font-size:17px;
-  font-weight:700;
-  line-height:1.18;
-}}
-
-table {{
-  width:100%;
-  border-collapse:collapse;
-}}
-
-td {{
-  border:0.45pt solid #dedede !important;
-  padding:3px 5px;
-  vertical-align:top;
-  background:#fff;
-}}
-
-.label {{
-  width:35.5%;
-  font-weight:400;
-  font-size:13px;
-  line-height:1.32;
-  -webkit-font-smoothing:antialiased;
-  background:#f7f7f7;
-  border:0.45pt solid #dedede !important;
-}}
-
-.value {{
-  background:#fff;
-  border:0.45pt solid #dedede !important;
-  font-weight:400;
-}}
-
-.address {{
-  border:0.45pt solid #e6e6e6 !important;
-  padding:4px 6px;
-  line-height:1.40;
-  font-weight:400;
-  min-height:0;
-  margin-bottom:3px;
-  overflow-wrap:anywhere;
-  word-break:break-word;
-  background:#fff;
-}}
-
-.footer {{
-  margin-top:8px;
-  padding-top:4px;
-  text-align:center;
-  font-size:8px;
-  font-weight:600;
-}}
-
+@page {{ size:A4; margin:0; }}
+* {{ box-sizing:border-box; }}
+body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
+.header, .notice, .section, table, .address, .footer {{ background:rgba(255,255,255,.96); border:0 !important; }}
+.page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm; object-fit:fill; opacity:1; z-index:0; pointer-events:none; }}
+.report-content {{ position:relative; z-index:1; }}
+.header {{ padding:7px 10px; text-align:center; margin-bottom:7px; }}
+h1 {{ margin:0; font-size:19px; }}
+.sub {{ font-size:8px; font-weight:bold; margin-top:2px; }}
+.notice {{ margin:5px 0 8px; padding:4px 7px; text-align:center; font-size:8px; font-weight:bold; }}
+.top {{ display:block; position:relative; }}
+.media {{ position:fixed; left:0; top:92mm; width:71.12mm; display:flex; flex-direction:column; align-items:center; z-index:2; }}
+.photo-name {{ margin-top:2mm; font-family:"Segoe UI","Arial",sans-serif; font-size:14px; font-weight:700; text-align:center; max-width:60mm; word-break:break-word; letter-spacing:.1px; }}
+.photo {{ width:30.48mm; height:auto; max-height:none; object-fit:contain; border:0.6pt solid #777; border-radius:2.2mm; }}
+.empty {{ display:flex; align-items:center; justify-content:center; }}
+.qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}
+.section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:700; line-height:1.18; }}
+table {{ width:100%; border-collapse:collapse; }}
+td {{ border:0.45pt solid #dedede !important; padding:3px 5px; vertical-align:top; background:#fff; }}
+.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:#f7f7f7; border:0.45pt solid #dedede !important; }}
+.value {{ background:#fff; border:0.45pt solid #dedede !important; font-weight:400; }}
+.address {{ border:0.45pt solid #e6e6e6 !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
+.footer {{ margin-top:8px; padding-top:4px; text-align:center; font-size:8px; font-weight:600; }}
 </style>
 </head>
-
 <body>
-
 {bg_html}
-
 <div class="report-content">
-
 <div class="header">
   <h1></h1>
+  
 </div>
+
+
 
 <div class="top">
-
-  <div class="media">
-    {photo}
-    {photo_name}
-    {qr}
-  </div>
-
+  <div class="media">{photo}{photo_name}{qr}</div>
   <div>
+    <div class="section" style="margin-top:0">জাতীয় পরিচিতি তথ্য</div>
+    <table>{national_rows}</table>
 
-    <div class="section" style="margin-top:0">
-      জাতীয় পরিচিতি তথ্য
-    </div>
+    <div class="section">ব্যক্তিগত তথ্য</div>
+    <table>{personal_rows}</table>
 
-    <table>
-      {national_rows}
-    </table>
-
-    <div class="section">
-      ব্যক্তিগত তথ্য
-    </div>
-
-    <table>
-      {personal_rows}
-    </table>
-
-    <div class="section">
-      অন্যান্য তথ্য
-    </div>
-
-    <table>
-      {other_rows}
-    </table>
-
+    <div class="section">অন্যান্য তথ্য</div>
+    <table>{other_rows}</table>
   </div>
-
 </div>
 
-<div class="section">
-  বর্তমান ঠিকানা
-</div>
+<div class="section">বর্তমান ঠিকানা</div>
+<div class="address">{esc(d.get("present_address"))}</div>
 
-<div class="address">
-  {esc(d.get("present_address"))}
-</div>
+<div class="section">স্থায়ী ঠিকানা</div>
+<div class="address">{esc(d.get("permanent_address"))}</div>
 
-<div class="section">
-  স্থায়ী ঠিকানা
-</div>
-
-<div class="address">
-  {esc(d.get("permanent_address"))}
-</div>
 
 </div>
-
 </body>
-</html>
-"""
+</html>"""
 
-    # ---------- Write HTML ----------
     html_path.write_text(html_doc, encoding="utf-8")
-
-    # ---------- Find browser ----------
     browser = _find_browser()
-
     if not browser:
-        raise HTTPException(
-            500,
-            "Chrome or Microsoft Edge was not found."
-        )
+        raise HTTPException(500, "Chrome or Microsoft Edge was not found.")
 
-    # ---------- Optimized Chrome command ----------
     cmd = [
-        browser,
-
-        "--headless=new",
-
-        # Render stability
-        "--no-sandbox",
-        "--disable-gpu",
-        "--disable-dev-shm-usage",
-
-        # Remove unnecessary Chrome work
-        "--disable-extensions",
-        "--disable-background-networking",
-        "--disable-background-timer-throttling",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-renderer-backgrounding",
-        "--disable-sync",
-
-        # Faster startup
-        "--no-first-run",
-        "--no-default-browser-check",
-
-        # Disable unnecessary browser features
-        "--disable-features=Translate,BackForwardCache",
-
-        # PDF
-        "--no-pdf-header-footer",
-
-        # Wait only a short time for page rendering
-        "--virtual-time-budget=300",
-
-        f"--print-to-pdf={str(out)}",
-
-        html_path.resolve().as_uri(),
+        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+        "--disable-extensions", "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw", "--virtual-time-budget=1500",
+        f"--print-to-pdf={str(out)}", html_path.resolve().as_uri()
     ]
-
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=20
-        )
-
-        # Fallback only if the first attempt really fails.
-        if (
-            result.returncode != 0
-            or not out.exists()
-            or out.stat().st_size < 1000
-        ):
-            fallback_cmd = [
-                browser,
-                "--headless",
-                "--no-sandbox",
-                "--disable-gpu",
-                "--disable-dev-shm-usage",
-                "--disable-extensions",
-                "--disable-background-networking",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--no-pdf-header-footer",
-                "--virtual-time-budget=300",
-                f"--print-to-pdf={str(out)}",
-                html_path.resolve().as_uri(),
-            ]
-
-            result = subprocess.run(
-                fallback_cmd,
-                capture_output=True,
-                text=True,
-                timeout=20
-            )
-
-        if (
-            result.returncode != 0
-            or not out.exists()
-            or out.stat().st_size < 1000
-        ):
-            raise HTTPException(
-                500,
-                (
-                    result.stderr
-                    or result.stdout
-                    or "PDF generation failed"
-                )[-1200:]
-            )
-
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+        if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
+            cmd[1] = "--headless"
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+        if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
+            raise HTTPException(500, (result.stderr or result.stdout or "PDF generation failed")[-1200:])
         return out
-
     finally:
-        try:
-            html_path.unlink(missing_ok=True)
-        except Exception:
-            pass
+        try: html_path.unlink(missing_ok=True)
+        except Exception: pass
+
 
 # -------------------------- Customer/Admin web API --------------------------
 
@@ -1487,124 +1159,6 @@ def web_logout():
 def web_me(web_session: str | None = Cookie(default=None)):
     u = current_user(web_session)
     return {"success":True, "user":{"id":u["id"],"email":u["email"],"role":u["role"]}, "balance":prod_balance(u["id"])}
-
-
-@app.post("/api/auth/register")
-def web_register(
-    full_name: str = Form(...),
-    email: str = Form(...),
-    mobile: str = Form(...),
-    password: str = Form(...),
-    confirm_password: str = Form(...)
-):
-    full_name=full_name.strip()
-    email=email.strip().lower()
-    mobile=mobile.strip()
-    if not full_name or not email or not mobile:
-        raise HTTPException(400, "All fields are required")
-    if len(password) < 8:
-        raise HTTPException(400, "Password must be at least 8 characters")
-    if password != confirm_password:
-        raise HTTPException(400, "Passwords do not match")
-    with prod_engine.begin() as c:
-        if c.execute(text("SELECT id FROM web_users WHERE email=:e"), {"e":email}).fetchone():
-            raise HTTPException(409, "Email already registered")
-        uid=_next_id(c,"web_users")
-        c.execute(text(
-            "INSERT INTO web_users(id,email,password_hash,role,active,created_at,full_name,mobile) "
-            "VALUES(:id,:e,:p,'customer',1,:t,:n,:m)"
-        ), {"id":uid,"e":email,"p":_hash_password(password),"t":datetime.utcnow().isoformat(),
-             "n":full_name,"m":mobile})
-        c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,0)"), {"u":uid})
-    return {"success":True,"message":"Account created successfully"}
-
-@app.get("/api/customer/status")
-def customer_status(web_session: str | None = Cookie(default=None)):
-    u=current_user(web_session)
-    return {
-        "success":True,
-        "user":{"id":u["id"],"email":u["email"],"role":u["role"]},
-        "balance":prod_balance(u["id"]),
-        "price":int(prod_setting("web_price","1")),
-        "bkash_number":os.getenv("BKASH_NUMBER","01700000000")
-    }
-
-@app.post("/api/customer/payments")
-def customer_submit_payment(
-    amount: int = Form(...),
-    credits: int = Form(...),
-    transaction_id: str = Form(...),
-    web_session: str | None = Cookie(default=None)
-):
-    u=require_customer(web_session)
-    if u["role"] != "customer":
-        raise HTTPException(403,"Customers only")
-    transaction_id=transaction_id.strip()
-    if amount <= 0 or credits <= 0:
-        raise HTTPException(400,"Amount and credits must be positive")
-    if not transaction_id:
-        raise HTTPException(400,"Transaction ID is required")
-    with prod_engine.begin() as c:
-        if c.execute(text("SELECT id FROM web_payments WHERE transaction_id=:t"),{"t":transaction_id}).fetchone():
-            raise HTTPException(409,"This transaction ID was already submitted")
-        pid=_next_id(c,"web_payments")
-        c.execute(text("""
-            INSERT INTO web_payments(id,user_id,amount,credits,transaction_id,status,note,created_at,verified_at)
-            VALUES(:id,:u,:a,:cr,:t,'pending','',:dt,NULL)
-        """),{"id":pid,"u":u["id"],"a":amount,"cr":credits,"t":transaction_id,"dt":datetime.utcnow().isoformat()})
-    return {"success":True,"status":"pending","message":"Payment submitted. Wait for admin approval."}
-
-@app.get("/api/customer/payments")
-def customer_payments(web_session: str | None = Cookie(default=None)):
-    u=require_customer(web_session)
-    with prod_engine.begin() as c:
-        rows=c.execute(text("""
-            SELECT id,amount,credits,transaction_id,status,note,created_at,verified_at
-            FROM web_payments WHERE user_id=:u ORDER BY id DESC LIMIT 100
-        """),{"u":u["id"]}).mappings().all()
-    return {"success":True,"payments":[dict(r) for r in rows]}
-
-@app.get("/api/admin/payments")
-def admin_payments(web_session: str | None = Cookie(default=None)):
-    require_admin(web_session)
-    with prod_engine.begin() as c:
-        rows=c.execute(text("""
-            SELECT p.id,p.amount,p.credits,p.transaction_id,p.status,p.note,p.created_at,p.verified_at,
-                   u.email,COALESCE(u.full_name,'') full_name
-            FROM web_payments p JOIN web_users u ON u.id=p.user_id
-            ORDER BY p.id DESC LIMIT 200
-        """)).mappings().all()
-    return {"success":True,"payments":[dict(r) for r in rows]}
-
-@app.post("/api/admin/payments/{payment_id}/approve")
-def admin_approve_payment(payment_id:int, web_session: str | None = Cookie(default=None)):
-    require_admin(web_session)
-    with prod_engine.begin() as c:
-        p=c.execute(text("SELECT * FROM web_payments WHERE id=:id"),{"id":payment_id}).mappings().first()
-        if not p: raise HTTPException(404,"Payment not found")
-        if p["status"] != "pending": raise HTTPException(400,"Payment is not pending")
-        w=c.execute(text("SELECT credits FROM web_wallets WHERE user_id=:u"),{"u":p["user_id"]}).fetchone()
-        if not w:
-            c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,0)"),{"u":p["user_id"]})
-            bal=0
-        else:
-            bal=int(w[0])
-        new=bal+int(p["credits"])
-        c.execute(text("UPDATE web_wallets SET credits=:c WHERE user_id=:u"),{"c":new,"u":p["user_id"]})
-        c.execute(text("UPDATE web_payments SET status='approved',verified_at=:t,note=:n WHERE id=:id"),
-                  {"t":datetime.utcnow().isoformat(),"n":"Approved by admin","id":payment_id})
-    return {"success":True,"balance":new}
-
-@app.post("/api/admin/payments/{payment_id}/reject")
-def admin_reject_payment(payment_id:int, web_session: str | None = Cookie(default=None)):
-    require_admin(web_session)
-    with prod_engine.begin() as c:
-        p=c.execute(text("SELECT status FROM web_payments WHERE id=:id"),{"id":payment_id}).mappings().first()
-        if not p: raise HTTPException(404,"Payment not found")
-        if p["status"] != "pending": raise HTTPException(400,"Payment is not pending")
-        c.execute(text("UPDATE web_payments SET status='rejected',verified_at=:t,note=:n WHERE id=:id"),
-                  {"t":datetime.utcnow().isoformat(),"n":"Rejected by admin","id":payment_id})
-    return {"success":True}
 
 @app.post("/api/admin/customers")
 def admin_create_customer(
@@ -1713,57 +1267,65 @@ async def customer_parse(file:UploadFile=File(...), web_session: str | None = Co
 
 @app.post("/api/customer/generate")
 async def customer_generate(
-    data_json:str=Form(...), web_session: str | None = Cookie(default=None)
+    data_json: str = Form(...),
+    web_session: str | None = Cookie(default=None)
 ):
-    u=require_customer(web_session)
-    try: d=json.loads(data_json)
-    except Exception: raise HTTPException(400,"Invalid data JSON")
-    sync_default_background_to_local()
-    price=int(prod_setting("web_price","1"))
-    # Charge only after validation and before final generation.
-    nid=str(d.get("national_id","")).strip()
-    if not nid: raise HTTPException(400,"NID number is required")
-    if u["role"] == "admin":
-        price = 0
-        new_balance = prod_balance(u["id"])
-    else:
-        new_balance = prod_charge(u["id"],price)
-    d["qr_b64"]=make_qr(d.get("name_en",""),d.get("national_id",""),d.get("dob",""))
+    u = require_customer(web_session)
     try:
-        out=make_pdf(d)
+        d = json.loads(data_json)
     except Exception:
-        # Refund if rendering fails.
-        if u["role"] != "admin" and price > 0:
-            with prod_engine.begin() as c:
-                c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),{"a":price,"u":u["id"]})
-        raise
-    save_generation(u["id"],nid,out.name,price,base64.b64encode(out.read_bytes()).decode())
-    return {"success":True,"charged":price,"balance":new_balance,"download":f"/download/{out.name}"}
+        raise HTTPException(400, "Invalid data JSON")
 
-@app.get("/api/customer/history/{generation_id}/download")
-def customer_history_download(generation_id:int, web_session: str | None = Cookie(default=None)):
-    u=require_customer(web_session)
-    with prod_engine.begin() as c:
-        r=c.execute(text(
-            "SELECT filename,pdf_data FROM web_generations WHERE id=:id AND user_id=:u"
-        ),{"id":generation_id,"u":u["id"]}).mappings().first()
-    if not r or not r["pdf_data"]:
-        raise HTTPException(404,"Stored PDF not found")
-    data=base64.b64decode(r["pdf_data"])
-    temp=GENERATED / f"history_{generation_id}_{Path(r['filename']).name}"
-    temp.write_bytes(data)
-    return FileResponse(temp,media_type="application/pdf",filename=Path(r["filename"]).name)
+    sync_default_background_to_local()
+    price = int(prod_setting("web_price", "1"))
+    nid = str(d.get("national_id", "")).strip()
+    if not nid:
+        raise HTTPException(400, "NID number is required")
+
+    new_balance = prod_charge(u["id"], price)
+    d["qr_b64"] = make_qr(
+        d.get("name_en", ""),
+        d.get("national_id", ""),
+        d.get("dob", "")
+    )
+
+    try:
+        out = make_pdf(d)
+        save_generation(u["id"], nid, out.name, price)
+    except Exception:
+        with prod_engine.begin() as c:
+            c.execute(
+                text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
+                {"a": price, "u": u["id"]}
+            )
+        raise
+
+    return FileResponse(
+        out,
+        media_type="application/pdf",
+        filename=out.name,
+        headers={
+            "Content-Disposition": f'inline; filename="{out.name}"',
+            "X-PDF-Charged": str(price),
+            "X-PDF-Balance": str(new_balance),
+        },
+        background=BackgroundTask(lambda p=out: p.unlink(missing_ok=True)),
+    )
+
 
 @app.get("/api/customer/history")
 def customer_history(web_session: str | None = Cookie(default=None)):
-    u=require_customer(web_session)
+    u = require_customer(web_session)
     with prod_engine.begin() as c:
-        rows=c.execute(text("""
+        rows = c.execute(text("""
             SELECT id,nid,filename,charged,created_at
-            FROM web_generations WHERE user_id=:u ORDER BY id DESC
-            LIMIT 100
-        """),{"u":u["id"]}).mappings().all()
-    return {"success":True,"history":[dict(r) for r in rows]}
+            FROM web_generations
+            WHERE user_id=:u
+            ORDER BY id DESC
+            LIMIT 5
+        """), {"u": u["id"]}).mappings().all()
+    return {"success": True, "history": [dict(r) for r in rows]}
+
 
 @app.get("/",response_class=HTMLResponse)
 def home(): return (STATIC/"index.html").read_text(encoding="utf-8")

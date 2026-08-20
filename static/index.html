@@ -652,3 +652,95 @@ function openCustomerForm() {
     });
 }
 </script>
+<script>
+async function saveCustomer() {
+    try {
+        const editId = document.getElementById("customerEditId")?.value || "";
+
+        const name = document.getElementById("customerFullName")?.value.trim() || "";
+        const mobile = document.getElementById("customerMobile")?.value.trim() || "";
+        const email = document.getElementById("customerEmail")?.value.trim() || "";
+        const password = document.getElementById("customerPassword")?.value || "";
+        const role = document.getElementById("customerRole")?.value || "customer";
+        const active = document.getElementById("customerActive")?.value || "1";
+
+        if (!name) {
+            alert("Full Name দিন");
+            return;
+        }
+
+        if (!mobile) {
+            alert("Mobile Number দিন");
+            return;
+        }
+
+        if (!email) {
+            alert("Email দিন");
+            return;
+        }
+
+        if (!editId && !password) {
+            alert("New Password দিন");
+            return;
+        }
+
+        const fd = new FormData();
+
+        fd.append("name", name);
+        fd.append("full_name", name);
+        fd.append("mobile", mobile);
+        fd.append("email", email);
+        fd.append("role", role);
+        fd.append("active", active);
+
+        if (password) {
+            fd.append("password", password);
+        }
+
+        let url = "/api/admin/customers";
+        let method = "POST";
+
+        if (editId) {
+            url = "/api/admin/customers/" + editId;
+            method = "PUT";
+        }
+
+        const response = await fetch(url, {
+            method: method,
+            body: fd
+        });
+
+        const text = await response.text();
+
+        let data = {};
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch (e) {
+            data = { detail: text };
+        }
+
+        if (!response.ok) {
+            alert(data.detail || data.message || "Customer save failed");
+            return;
+        }
+
+        alert(editId ? "Customer updated successfully." : "Customer created successfully.");
+
+        if (typeof closeCustomerForm === "function") {
+            closeCustomerForm();
+        }
+
+        if (typeof loadCustomers === "function") {
+            await loadCustomers();
+        }
+
+        if (typeof loadAdmin === "function") {
+            await loadAdmin();
+        }
+
+    } catch (error) {
+        console.error("saveCustomer error:", error);
+        alert("Save Customer error: " + error.message);
+    }
+}
+</script>

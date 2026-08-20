@@ -118,13 +118,15 @@ def prod_init():
     with prod_engine.begin() as c:
         c.execute(text("""
             CREATE TABLE IF NOT EXISTS web_users (
-                id INTEGER PRIMARY KEY,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                role VARCHAR(20) NOT NULL DEFAULT 'customer',
-                active INTEGER NOT NULL DEFAULT 1,
-                created_at VARCHAR(40) NOT NULL
-            )
+    id INTEGER PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'customer',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at VARCHAR(40) NOT NULL,
+    full_name VARCHAR(255) DEFAULT '',
+    mobile VARCHAR(50) DEFAULT ''
+)
         """))
         c.execute(text("""
             CREATE TABLE IF NOT EXISTS web_wallets (
@@ -1326,6 +1328,353 @@ def customer_status(web_session: str | None = Cookie(default=None)):
         "balance": prod_balance(u["id"]),
         "price": int(prod_setting("web_price", "1")),
         "bkash_number": prod_setting("bkash_number", "")
+    }
+    # ============================================================
+# CUSTOMER MANAGEMENT
+# ============================================================
+
+@app.get("/api/admin/customers")
+def admin_customers(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+
+    with prod_engine.begin() as c:
+        rows = c.execute(
+            text("""
+                SELECT
+                    id,
+                    email,
+                    role,
+                    active,
+                    created_at,
+                    full_name,
+                    mobile
+                FROM web_users
+                ORDER BY id DESC
+            """)
+        ).mappings().all()
+
+    return {
+        "success": True,
+        "customers": [dict(row) for row in rows]
+    }
+
+
+@app.post("/api/admin/customer")
+async def admin_add_customer(
+    email: str = Form(...),
+    password: str = Form(...),
+    full_name: str = Form(""),
+    mobile: str = Form(""),
+    role: str = Form("customer"),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+
+    email = email.strip().lower()
+    password = password.strip()
+    full_name = full_name.strip()
+    mobile = mobile.strip()
+    role = role.strip() or "customer"
+
+    if not email:
+        raise HTTPException(400, "Email is required")
+
+    if not password:
+        raise HTTPException(400, "Password is required")
+
+    if len(password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+
+    if role not in ("customer", "admin"):
+        role = "customer"
+
+    with prod_engine.begin() as c:
+        existing = c.execute(
+            text("SELECT id FROM web_users WHERE email=:email"),
+            {"email": email}
+        ).mappings().first()
+
+        if existing:
+            raise HTTPException(400, "Email already exists")
+
+        uid = c.execute(
+            text("""
+                INSERT INTO web_users
+                (
+                    email,
+                    password_hash,
+                    role,
+                    active,
+                    created_at,
+                    full_name,
+                    mobile
+                )
+                VALUES
+                (
+                    :email,
+                    :password_hash,
+                    :role,
+                    1,
+                    :created_at,
+                    :full_name,
+                    :mobile
+                )
+                RETURNING id
+            """),
+            {
+                "email": email,
+                "password_hash": _hash_password(password),
+                "role": role,
+                "created_at": datetime.utcnow().isoformat(),
+                "full_name": full_name,
+                "mobile": mobile,
+            }
+        ).scalar_one()
+
+        # নতুন user-এর wallet তৈরি
+        c.execute(
+            text("""
+                INSERT INTO web_wallets(user_id, credits)
+                VALUES(:uid, 0)
+                ON CONFLICT (user_id) DO NOTHING
+            """),
+            {"uid": uid}
+        )
+
+    return {
+        "success": True,
+        "message": "Customer created successfully",
+        "id": uid
+    }
+
+
+@app.post("/api/admin/customer/update")
+async def admin_update_customer(
+    user_id: int = Form(...),
+    email: str = Form(...),
+    full_name: str = Form(""),
+    mobile: str = Form(""),
+    role: str = Form("customer"),
+    active: int = Form(1),
+    new_password: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+
+    email = email.strip().lower()
+    full_name = full_name.strip()
+    mobile = mobile.strip()
+    role = role.strip() or "customer"
+
+    if not email:
+        raise HTTPException(400, "Email is required")
+
+    if role not in ("customer", "admin"):
+        role = "customer"
+
+    active = 1 if int(active) else 0
+
+    with prod_engine.begin() as c:
+        existing = c.execute(
+            text("""
+                SELECT id
+                FROM web_users
+                WHERE email=:email AND id<>:user_id
+            """),
+            {
+                "email": email,
+                "user_id": user_id
+            }
+        ).mappings().first()
+
+        if existing:
+            raise HTTPException(400, "Email already exists")
+
+        # Password দেওয়া থাকলে password update হবে
+        if new_password.strip():
+            if len(new_password.strip()) < 6:
+                raise HTTPException(
+                    400,
+                    "New password must be at least 6 characters"
+                )
+
+            c.execute(
+                text("""
+                    UPDATE web_users
+                    SET
+                        email=:email,
+                        full_name=:full_name,
+                        mobile=:mobile,
+                        role=:role,
+                        active=:active,
+                        password_hash=:password_hash
+                    WHERE id=:user_id
+                """),
+                {
+                    "email": email,
+                    "full_name": full_name,
+                    "mobile": mobile,
+                    "role": role,
+                    "active": active,
+                    "password_hash": _hash_password(new_password.strip()),
+                    "user_id": user_id,
+                }
+            )
+        else:
+            c.execute(
+                text("""
+                    UPDATE web_users
+                    SET
+                        email=:email,
+                        full_name=:full_name,
+                        mobile=:mobile,
+                        role=:role,
+                        active=:active
+                    WHERE id=:user_id
+                """),
+                {
+                    "email": email,
+                    "full_name": full_name,
+                    "mobile": mobile,
+                    "role": role,
+                    "active": active,
+                    "user_id": user_id,
+                }
+            )
+
+    return {
+        "success": True,
+        "message": "Customer updated successfully"
+    }
+
+
+@app.post("/api/admin/customer/delete")
+async def admin_delete_customer(
+    user_id: int = Form(...),
+    web_session: str | None = Cookie(default=None)
+):
+    admin = require_admin(web_session)
+
+    if int(user_id) == int(admin["id"]):
+        raise HTTPException(400, "You cannot delete your own admin account")
+
+    with prod_engine.begin() as c:
+        user = c.execute(
+            text("SELECT id FROM web_users WHERE id=:user_id"),
+            {"user_id": user_id}
+        ).mappings().first()
+
+        if not user:
+            raise HTTPException(404, "Customer not found")
+
+        # wallet থাকলে আগে delete
+        c.execute(
+            text("DELETE FROM web_wallets WHERE user_id=:user_id"),
+            {"user_id": user_id}
+        )
+
+        c.execute(
+            text("DELETE FROM web_users WHERE id=:user_id"),
+            {"user_id": user_id}
+        )
+
+    return {
+        "success": True,
+        "message": "Customer deleted successfully"
+    }
+
+
+# ============================================================
+# USER PROFILE / PASSWORD
+# ============================================================
+
+@app.post("/api/user/profile")
+async def update_my_profile(
+    full_name: str = Form(""),
+    mobile: str = Form(""),
+    new_password: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    user = require_customer(web_session)
+
+    full_name = full_name.strip()
+    mobile = mobile.strip()
+    new_password = new_password.strip()
+
+    with prod_engine.begin() as c:
+
+        if new_password:
+            if len(new_password) < 6:
+                raise HTTPException(
+                    400,
+                    "New password must be at least 6 characters"
+                )
+
+            c.execute(
+                text("""
+                    UPDATE web_users
+                    SET
+                        full_name=:full_name,
+                        mobile=:mobile,
+                        password_hash=:password_hash
+                    WHERE id=:user_id
+                """),
+                {
+                    "full_name": full_name,
+                    "mobile": mobile,
+                    "password_hash": _hash_password(new_password),
+                    "user_id": user["id"],
+                }
+            )
+        else:
+            c.execute(
+                text("""
+                    UPDATE web_users
+                    SET
+                        full_name=:full_name,
+                        mobile=:mobile
+                    WHERE id=:user_id
+                """),
+                {
+                    "full_name": full_name,
+                    "mobile": mobile,
+                    "user_id": user["id"],
+                }
+            )
+
+    return {
+        "success": True,
+        "message": "Profile updated successfully"
+    }
+
+
+@app.get("/api/user/profile")
+def get_my_profile(
+    web_session: str | None = Cookie(default=None)
+):
+    user = require_customer(web_session)
+
+    with prod_engine.begin() as c:
+        row = c.execute(
+            text("""
+                SELECT
+                    id,
+                    email,
+                    full_name,
+                    mobile,
+                    role
+                FROM web_users
+                WHERE id=:user_id
+            """),
+            {"user_id": user["id"]}
+        ).mappings().first()
+
+    if not row:
+        raise HTTPException(404, "User not found")
+
+    return {
+        "success": True,
+        "user": dict(row)
     }
 @app.post("/api/admin/bkash")
 async def admin_bkash(

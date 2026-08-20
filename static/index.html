@@ -545,3 +545,60 @@ async function savePrice(){let fd=new FormData();fd.append("web_price",$("price"
 $("loginForm").addEventListener("submit",login);$("registerForm").addEventListener("submit",register);boot();
 </script></body></html>
 ```
+<script>
+function openCustomerForm() {
+    const box = document.getElementById("customerFormBox");
+
+    if (!box) {
+        alert("Customer form box not found");
+        return;
+    }
+
+    box.style.display = "block";
+
+    const title = document.getElementById("customerFormTitle");
+    if (title) {
+        title.textContent = "Add Customer";
+    }
+
+    const editId = document.getElementById("customerEditId");
+    if (editId) {
+        editId.value = "";
+    }
+
+    const fullName = document.getElementById("customerFullName");
+    if (fullName) {
+        fullName.value = "";
+    }
+
+    const mobile = document.getElementById("customerMobile");
+    if (mobile) {
+        mobile.value = "";
+    }
+
+    const email = document.getElementById("customerEmail");
+    if (email) {
+        email.value = "";
+    }
+
+    const password = document.getElementById("customerPassword");
+    if (password) {
+        password.value = "";
+    }
+
+    const role = document.getElementById("customerRole");
+    if (role) {
+        role.value = "customer";
+    }
+
+    const active = document.getElementById("customerActive");
+    if (active) {
+        active.value = "1";
+    }
+
+    box.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+    });
+}
+</script>

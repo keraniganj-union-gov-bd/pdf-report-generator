@@ -160,8 +160,7 @@ async function generatePdf(){
 }
 
 async function loadStatus(){let r=await fetch("/api/customer/status");if(!r.ok)return;let x=await r.json();$("balance").textContent=x.balance;$("bkashNumber").textContent=x.bkash_number}
-function syncCredits(){let a=parseInt($("payAmount").value||0);$("payCredits").value=Math.max(1,Math.floor(a/10))}
-async function submitPayment(){let fd=new FormData();fd.append("amount",$("payAmount").value);fd.append("credits",$("payCredits").value);fd.append("transaction_id",$("trxId").value);let r=await fetch("/api/customer/payments",{method:"POST",body:fd});let x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("trxId").value="";loadMyPayments()}}
+async function submitPayment(){let fd=new FormData();fd.append("amount",$("payAmount").value);fd.append("transaction_id",$("trxId").value);let r=await fetch("/api/customer/payments",{method:"POST",body:fd});let x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("trxId").value="";loadMyPayments()}}
 async function loadMyPayments(){let r=await fetch("/api/customer/payments");if(!r.ok)return;let x=await r.json();$("myPayments").innerHTML=x.payments.map(p=>`<tr><td>${p.created_at}</td><td>৳${p.amount}</td><td>${p.credits}</td><td>${p.transaction_id}</td><td>${p.status}</td></tr>`).join("")}
 async function loadHistory(){let r=await fetch("/api/customer/history");if(!r.ok)return;let x=await r.json();$("historyBody").innerHTML=x.history.map(h=>`<tr><td>${h.id}</td><td>${h.nid||""}</td><td>${h.filename||""}</td><td>${h.charged}</td><td>${h.created_at}</td></tr>`).join("")}
 async function loadAdmin(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerCount").textContent=x.customers.length;let s=await (await fetch("/api/customer/status")).json();$("adminPrice").textContent=s.price;$("price").value=s.price;loadAdminPayments()}

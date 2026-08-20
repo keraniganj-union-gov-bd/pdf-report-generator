@@ -536,7 +536,37 @@ function renderAdminPayments(){
 }
 async function approvePayment(id){let r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
 async function rejectPayment(id){let r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
-async function createCustomer() {
+async function saveCustomer(){
+    let fd = new FormData();
+
+    fd.append("email", document.getElementById("newEmail").value);
+    fd.append("password", document.getElementById("customerPassword").value);
+    fd.append("full_name", document.getElementById("newName").value);
+    fd.append("mobile", document.getElementById("newMobile").value);
+    fd.append("role", document.getElementById("customerRole").value);
+
+    let r = await fetch("/api/admin/customer", {
+        method: "POST",
+        body: fd
+    });
+
+    let x = await r.json();
+
+    if (!r.ok) {
+        alert(x.detail || "Customer create failed");
+        return;
+    }
+
+    alert("Customer created successfully");
+
+    document.getElementById("newName").value = "";
+    document.getElementById("newMobile").value = "";
+    document.getElementById("newEmail").value = "";
+    document.getElementById("customerPassword").value = "";
+
+    closeCustomerForm();
+    loadCustomers();
+}
     const fd = new FormData();
 
     fd.append("email", document.getElementById("customerEmail").value.trim());

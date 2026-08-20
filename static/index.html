@@ -556,36 +556,24 @@ async function createCustomer() {
         const x = await r.json();
 
         if (!r.ok) {
-            if (status) {
-                status.textContent = x.detail || "Customer creation failed";
-            }
+            status.textContent = x.detail || "Customer create failed";
             return;
         }
 
-        if (status) {
-            status.textContent = "Customer created successfully.";
-        }
+        status.textContent = "Customer created successfully";
 
         document.getElementById("customerEmail").value = "";
         document.getElementById("customerPassword").value = "";
         document.getElementById("customerFullName").value = "";
         document.getElementById("customerMobile").value = "";
 
-        const box = document.getElementById("customerFormBox");
-        if (box) {
-            box.style.display = "none";
-        }
-
-        if (typeof loadCustomers === "function") {
-            loadCustomers();
-        }
+        closeCustomerForm();
+        loadCustomers();
 
     } catch (err) {
-        if (status) {
-            status.textContent = "Network error. Please try again.";
-        }
-        console.error(err);
+        status.textContent = "Error: " + err.message;
     }
+}
 }
 async function loadCustomers(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerBody").innerHTML=x.customers.map(c=>`<tr><td>${c.email}</td><td>${c.credits}</td><td>${c.active?"Active":"Disabled"}</td><td><button class="btn secondary" onclick="credit(${c.id},10)">+10</button> <button class="btn danger" onclick="credit(${c.id},-10)">-10</button></td></tr>`).join("")}
 async function credit(id,amount){let fd=new FormData();fd.append("amount",amount);let r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){let x=await r.json();alert(x.detail||"Failed")}loadCustomers()}

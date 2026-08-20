@@ -1218,50 +1218,6 @@ def web_me(web_session: str | None = Cookie(default=None)):
     u = current_user(web_session)
     return {"success":True, "user":{"id":u["id"],"email":u["email"],"role":u["role"]}, "balance":prod_balance(u["id"])}
 
-@app.post("/api/admin/customers")
-def admin_create_customer(
-    email: str = Form(...), password: str = Form(...), credits: int = Form(0),
-    web_session: str | None = Cookie(default=None)
-):
-    require_admin(web_session)
-    email=email.strip().lower()
-    if len(password) < 8: raise HTTPException(400, "Password must be at least 8 characters")
-    if credits < 0: raise HTTPException(400, "Credits cannot be negative")
-    with prod_engine.begin() as c:
-        if c.execute(text("SELECT id FROM web_users WHERE email=:e"), {"e":email}).fetchone():
-            raise HTTPException(409, "Customer already exists")
-        uid=_next_id(c,"web_users")
-        c.execute(text(
-            "INSERT INTO web_users(id,email,password_hash,role,active,created_at) "
-            "VALUES(:id,:e,:p,'customer',1,:t)"
-        ), {"id":uid,"e":email,"p":_hash_password(password),"t":datetime.utcnow().isoformat()})
-        c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,:c)"), {"u":uid,"c":credits})
-    return {"success":True,"id":uid,"email":email,"credits":credits}
-
-@app.get("/api/admin/customers")
-def admin_customers(web_session: str | None = Cookie(default=None)):
-    require_admin(web_session)
-    with prod_engine.begin() as c:
-        rows=c.execute(text("""
-            SELECT u.id,u.email,u.active,COALESCE(w.credits,0) credits,u.created_at
-            FROM web_users u LEFT JOIN web_wallets w ON w.user_id=u.id
-            WHERE u.role='customer' ORDER BY u.id DESC
-        """)).mappings().all()
-    return {"success":True,"customers":[dict(r) for r in rows]}
-
-@app.post("/api/admin/customers/{user_id}/credit")
-def admin_credit_customer(
-    user_id:int, amount:int=Form(...), web_session: str | None=Cookie(default=None)
-):
-    require_admin(web_session)
-    if amount == 0: raise HTTPException(400, "Amount cannot be zero")
-    with prod_engine.begin() as c:
-        r=c.execute(text("SELECT credits FROM web_wallets WHERE user_id=:u"),{"u":user_id}).fetchone()
-        if not r: raise HTTPException(404,"Customer wallet not found")
-        new=int(r[0])+amount
-        if new < 0: raise HTTPException(400,"Balance cannot be negative")
-        c.execute(text("UPDATE web_wallets SET credits=:c WHERE user_id=:u"),{"c":new,"u":user_id})
-    return {"success":True,"balance":new}
 
 @app.post("/api/admin/price")
 def admin_web_price(web_price:int=Form(...), web_session: str | None=Cookie(default=None)):
@@ -1446,7 +1402,6 @@ async def admin_add_customer(
         "message": "Customer created successfully",
         "id": uid
     }
-
 
 @app.post("/api/admin/customer/update")
 async def admin_update_customer(

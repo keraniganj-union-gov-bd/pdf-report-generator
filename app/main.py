@@ -1263,8 +1263,32 @@ def admin_background_status(web_session: str | None = Cookie(default=None)):
 
 @app.get("/api/customer/status")
 def customer_status(web_session: str | None = Cookie(default=None)):
-    u=require_customer(web_session)
-    return {"success":True,"balance":prod_balance(u["id"]),"price":int(prod_setting("web_price","1"))}
+    u = require_customer(web_session)
+
+    return {
+        "success": True,
+        "balance": prod_balance(u["id"]),
+        "price": int(prod_setting("web_price", "1")),
+        "bkash_number": prod_setting("bkash_number", "")
+    }
+    @app.post("/api/admin/bkash")
+async def admin_bkash(
+    bkash_number: str = Form(...),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+
+    bkash_number = bkash_number.strip()
+
+    if not bkash_number:
+        raise HTTPException(400, "bKash number is required")
+
+    prod_set_setting("bkash_number", bkash_number)
+
+    return {
+        "success": True,
+        "bkash_number": bkash_number
+    }
 
 async def _parse_source_upload(file: UploadFile):
     if not file.filename or not file.filename.lower().endswith(".pdf"):

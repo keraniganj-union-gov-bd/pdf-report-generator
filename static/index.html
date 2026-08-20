@@ -93,7 +93,7 @@ async function parseSource(){let f=$("source").files[0];if(!f)return setStatus("
 function renderData(){let box=$("dataForm");box.innerHTML="";fields.forEach(([k,l])=>{let d=document.createElement("div");d.className="field"+(k.includes("address")?" wide":"");d.innerHTML=`<label>${l}</label><input data-k="${k}" value="${String(data[k]||"").replace(/"/g,"&quot;")}">`;box.appendChild(d)})}
 function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
 function clearData(){data={};$("dataForm").innerHTML="";show("customerHome")}
-async async function generatePdf(){
+async function generatePdf(){
   collect();
   if(!data.national_id)return alert("NID number required");
 

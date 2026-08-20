@@ -165,7 +165,123 @@ async function submitPayment(){let fd=new FormData();fd.append("amount",$("payAm
 async function loadMyPayments(){let r=await fetch("/api/customer/payments");if(!r.ok)return;let x=await r.json();$("myPayments").innerHTML=x.payments.map(p=>`<tr><td>${p.created_at}</td><td>৳${p.amount}</td><td>${p.credits}</td><td>${p.transaction_id}</td><td>${p.status}</td></tr>`).join("")}
 async function loadHistory(){let r=await fetch("/api/customer/history");if(!r.ok)return;let x=await r.json();$("historyBody").innerHTML=x.history.map(h=>`<tr><td>${h.id}</td><td>${h.nid||""}</td><td>${h.filename||""}</td><td>${h.charged}</td><td>${h.created_at}</td></tr>`).join("")}
 async function loadAdmin(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerCount").textContent=x.customers.length;let s=await (await fetch("/api/customer/status")).json();$("adminPrice").textContent=s.price;$("price").value=s.price;loadAdminPayments()}
-async function loadAdminPayments(){let r=await fetch("/api/admin/payments");if(!r.ok)return;let x=await r.json();$("pendingCount").textContent=x.payments.filter(p=>p.status==="pending").length;$("paymentBody").innerHTML=x.payments.map(p=>`<tr><td>${p.full_name||p.email}<br>${p.email}</td><td>৳${p.amount}</td><td>${p.credits}</td><td>${p.transaction_id}</td><td>${p.status}</td><td>${p.status==="pending"?`<button class="btn success" onclick="approvePayment(${p.id})">Approve</button> <button class="btn danger" onclick="rejectPayment(${p.id})">Reject</button>`:"-"}</td></tr>`).join("")}
+let allAdminPayments = [];
+let paymentFilter = "all";
+
+async function loadAdminPayments(){
+    let r = await fetch("/api/admin/payments");
+
+    if(!r.ok){
+        $("paymentBody").innerHTML =
+            '<tr><td colspan="6">Payment load করা যায়নি।</td></tr>';
+        return;
+    }
+
+    let x = await r.json();
+
+    allAdminPayments = x.payments || [];
+
+    updatePaymentCount();
+    renderAdminPayments();
+}
+
+function updatePaymentCount(){
+
+    let pending = allAdminPayments.filter(
+        p => p.status === "pending"
+    ).length;
+
+    $("pendingCount").textContent = pending;
+
+    if($("approvedCount")){
+        $("approvedCount").textContent =
+            allAdminPayments.filter(
+                p => p.status === "approved"
+            ).length;
+    }
+
+    if($("rejectedCount")){
+        $("rejectedCount").textContent =
+            allAdminPayments.filter(
+                p => p.status === "rejected"
+            ).length;
+    }
+}
+
+function filterPayments(status){
+    paymentFilter = status;
+    renderAdminPayments();
+}
+
+function renderAdminPayments(){
+
+    let payments = allAdminPayments;
+
+    if(paymentFilter !== "all"){
+        payments = payments.filter(
+            p => p.status === paymentFilter
+        );
+    }
+
+    if(!payments.length){
+        $("paymentBody").innerHTML =
+            '<tr><td colspan="6" style="text-align:center;">কোনো payment পাওয়া যায়নি।</td></tr>';
+        return;
+    }
+
+    $("paymentBody").innerHTML = payments.map(p => {
+
+        let status = p.status || "pending";
+
+        let statusHtml =
+            status === "approved"
+            ? '<span class="status-badge approved">Approved</span>'
+            : status === "rejected"
+            ? '<span class="status-badge rejected">Rejected</span>'
+            : '<span class="status-badge pending">Pending</span>';
+
+        let action = "-";
+
+        if(status === "pending"){
+            action = `
+                <button
+                    class="btn success"
+                    onclick="approvePayment(${p.id})">
+                    ✓ Approve
+                </button>
+
+                <button
+                    class="btn danger"
+                    onclick="rejectPayment(${p.id})">
+                    ✕ Reject
+                </button>
+            `;
+        }
+
+        return `
+            <tr>
+                <td>
+                    <b>${p.full_name || "Customer"}</b>
+                    <br>
+                    <small>${p.email || ""}</small>
+                </td>
+
+                <td>৳${p.amount || 0}</td>
+
+                <td>${p.credits || 0}</td>
+
+                <td>
+                    <b>${p.transaction_id || ""}</b>
+                </td>
+
+                <td>${statusHtml}</td>
+
+                <td>${action}</td>
+            </tr>
+        `;
+
+    }).join("");
+}
 async function approvePayment(id){let r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
 async function rejectPayment(id){let r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
 async function createCustomer(){let fd=new FormData();fd.append("email",$("newEmail").value);fd.append("password",$("newPassword").value);fd.append("credits",$("newCredits").value);let r=await fetch("/api/admin/customers",{method:"POST",body:fd});let x=await r.json();$("adminStatus").textContent=r.ok?"Customer created.":(x.detail||"Failed");if(r.ok){$("newEmail").value="";$("newPassword").value="";loadCustomers();loadAdmin()}}

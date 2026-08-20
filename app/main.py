@@ -1154,6 +1154,62 @@ def web_logout():
     out = JSONResponse({"success": True})
     out.delete_cookie("web_session")
     return out
+@app.post("/api/auth/register")
+def web_register(
+    full_name: str = Form(...),
+    email: str = Form(...),
+    mobile: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...)
+):
+    full_name = full_name.strip()
+    email = email.strip().lower()
+    mobile = mobile.strip()
+
+    if not full_name or not email or not mobile:
+        raise HTTPException(400, "All fields are required")
+
+    if len(password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+
+    if password != confirm_password:
+        raise HTTPException(400, "Passwords do not match")
+
+    with prod_engine.begin() as c:
+        if c.execute(
+            text("SELECT id FROM web_users WHERE email=:e"),
+            {"e": email}
+        ).fetchone():
+            raise HTTPException(409, "Email already registered")
+
+        uid = _next_id(c, "web_users")
+
+        c.execute(
+            text("""
+                INSERT INTO web_users
+                (id,email,password_hash,role,active,created_at,full_name,mobile)
+                VALUES
+                (:id,:e,:p,'customer',1,:t,:n,:m)
+            """),
+            {
+                "id": uid,
+                "e": email,
+                "p": _hash_password(password),
+                "t": datetime.utcnow().isoformat(),
+                "n": full_name,
+                "m": mobile
+            }
+        )
+
+        c.execute(
+            text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,0)"),
+            {"u": uid}
+        )
+
+    return {
+        "success": True,
+        "message": "Account created successfully"
+    }
 
 @app.get("/api/auth/me")
 def web_me(web_session: str | None = Cookie(default=None)):

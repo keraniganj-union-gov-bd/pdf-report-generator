@@ -536,7 +536,57 @@ function renderAdminPayments(){
 }
 async function approvePayment(id){let r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
 async function rejectPayment(id){let r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
-async function createCustomer(){let fd=new FormData();fd.append("email",$("newEmail").value);fd.append("password",$("newPassword").value);fd.append("credits",$("newCredits").value);let r=await fetch("/api/admin/customers",{method:"POST",body:fd});let x=await r.json();$("adminStatus").textContent=r.ok?"Customer created.":(x.detail||"Failed");if(r.ok){$("newEmail").value="";$("newPassword").value="";loadCustomers();loadAdmin()}}
+async function createCustomer() {
+    const fd = new FormData();
+
+    fd.append("email", document.getElementById("customerEmail").value.trim());
+    fd.append("password", document.getElementById("customerPassword").value);
+    fd.append("full_name", document.getElementById("customerFullName").value.trim());
+    fd.append("mobile", document.getElementById("customerMobile").value.trim());
+    fd.append("role", document.getElementById("customerRole").value);
+
+    const status = document.getElementById("customerStatus");
+
+    try {
+        const r = await fetch("/api/admin/customer", {
+            method: "POST",
+            body: fd
+        });
+
+        const x = await r.json();
+
+        if (!r.ok) {
+            if (status) {
+                status.textContent = x.detail || "Customer creation failed";
+            }
+            return;
+        }
+
+        if (status) {
+            status.textContent = "Customer created successfully.";
+        }
+
+        document.getElementById("customerEmail").value = "";
+        document.getElementById("customerPassword").value = "";
+        document.getElementById("customerFullName").value = "";
+        document.getElementById("customerMobile").value = "";
+
+        const box = document.getElementById("customerFormBox");
+        if (box) {
+            box.style.display = "none";
+        }
+
+        if (typeof loadCustomers === "function") {
+            loadCustomers();
+        }
+
+    } catch (err) {
+        if (status) {
+            status.textContent = "Network error. Please try again.";
+        }
+        console.error(err);
+    }
+}
 async function loadCustomers(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerBody").innerHTML=x.customers.map(c=>`<tr><td>${c.email}</td><td>${c.credits}</td><td>${c.active?"Active":"Disabled"}</td><td><button class="btn secondary" onclick="credit(${c.id},10)">+10</button> <button class="btn danger" onclick="credit(${c.id},-10)">-10</button></td></tr>`).join("")}
 async function credit(id,amount){let fd=new FormData();fd.append("amount",amount);let r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){let x=await r.json();alert(x.detail||"Failed")}loadCustomers()}
 async function setBackground(){let f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");let fd=new FormData();fd.append("file",f);let r=await fetch("/api/admin/background",{method:"POST",body:fd});let x=await r.json();$("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed")}

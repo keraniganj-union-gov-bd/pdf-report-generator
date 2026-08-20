@@ -1271,7 +1271,7 @@ def customer_status(web_session: str | None = Cookie(default=None)):
         "price": int(prod_setting("web_price", "1")),
         "bkash_number": prod_setting("bkash_number", "")
     }
-    @app.post("/api/admin/bkash")
+@app.post("/api/admin/bkash")
 async def admin_bkash(
     bkash_number: str = Form(...),
     web_session: str | None = Cookie(default=None)

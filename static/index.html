@@ -130,7 +130,51 @@
 
 <section id="history" class="card page hidden"><h2>Recent 5 Generations</h2><p class="muted">শুধু সর্বশেষ ৫টি generation-এর তথ্য রাখা হয়। PDF history-তে save করা হয় না।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>NID</th><th>File</th><th>Charge</th><th>Date</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
 
-<section id="adminDashboard" class="card page hidden"><h2>Admin Dashboard</h2><p>Customer, payment, pricing এবং background manage করুন। Admin-এর PDF generate করতে balance লাগে না।</p><div class="grid3"><div class="stat"><small>Customers</small><b id="customerCount">0</b></div><div class="stat"><small>Pending Payments</small><b id="pendingCount">0</b></div><div class="stat"><small>PDF Price</small><b id="adminPrice">0</b></div></div></section>
+<section id="adminDashboard" class="card page hidden">
+  <h2>Payment & Pricing Settings</h2>
+
+  <div class="paybox">
+
+    <div class="field">
+      <label>Charge (৳)</label>
+      <input
+        id="adminWebPrice"
+        type="number"
+        min="0"
+        placeholder="10"
+      >
+    </div>
+
+    <div class="field">
+      <label>bKash Personal Number (Send Money)</label>
+      <input
+        id="adminBkashNumber"
+        type="text"
+        placeholder="01XXXXXXXXX"
+      >
+    </div>
+
+    <div class="field">
+      <label>Payment Instruction</label>
+      <textarea
+        id="adminPaymentInstruction"
+        rows="3"
+        placeholder="উল্লিখিত bKash Personal নম্বরে Send Money করে Transaction ID জমা দিন। Admin যাচাই ও অনুমোদনের পর Balance যোগ হবে।"
+      ></textarea>
+    </div>
+
+    <button
+      class="btn"
+      type="button"
+      onclick="savePaymentSettings()"
+    >
+      Settings Save করুন
+    </button>
+
+    <div id="adminPaymentStatus" class="status"></div>
+
+  </div>
+</section>
 
 <section id="adminPayments" class="card page hidden"><h2>bKash Payments</h2><p>Customer payment verify করুন। Approve করলে credit automatically যোগ হবে।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>Customer</th><th>Amount</th><th>Credits</th><th>Transaction</th><th>Status</th><th>Action</th></tr></thead><tbody id="paymentBody"></tbody></table></div></section>
 

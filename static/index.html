@@ -130,8 +130,8 @@
 
 <section id="history" class="card page hidden"><h2>Recent 5 Generations</h2><p class="muted">শুধু সর্বশেষ ৫টি generation-এর তথ্য রাখা হয়। PDF history-তে save করা হয় না।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>NID</th><th>File</th><th>Charge</th><th>Date</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
 
-<section id="adminDashboard" class="card page hidden">
-  <h2>Payment & Pricing Settings</h2>
+<section id="adminPayments" class="card page hidden">
+  <h2>bKash Payments</h2>
 
   <div class="paybox">
 
@@ -158,8 +158,8 @@
       <label>Payment Instruction</label>
       <textarea
         id="adminPaymentInstruction"
-        rows="3"
-        placeholder="উল্লিখিত bKash Personal নম্বরে Send Money করে Transaction ID জমা দিন। Admin যাচাই ও অনুমোদনের পর Balance যোগ হবে।"
+        rows="4"
+        placeholder="bKash Personal নম্বরে Send Money করে Transaction ID জমা দিন।"
       ></textarea>
     </div>
 
@@ -171,7 +171,7 @@
       Settings Save করুন
     </button>
 
-    <div id="adminPaymentStatus" class="status"></div>
+    <div id="paymentSettingsStatus" class="status"></div>
 
   </div>
 </section>

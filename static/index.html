@@ -49,16 +49,82 @@
 
 <section id="customerData" class="card page hidden"><h2>তথ্য যাচাই</h2><p>PDF তৈরি করার আগে প্রয়োজন হলে তথ্য edit করুন।</p><div id="dataForm" class="form-grid"></div><div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div></section>
 
-<section id="buyCredits" class="card page hidden"><h2>Credit কিনুন — bKash</h2><p>Manual bKash payment: টাকা পাঠিয়ে Transaction ID submit করুন। Admin approve করার পর credit যোগ হবে।</p>
-<div class="paybox">bKash নম্বর: <strong id="bkashNumber">Loading...</strong><br><span class="muted">Send Money করুন (Cash Out নয়)।</span></div>
-<div class="form-grid">
-<div class="field"><label>Amount (৳)</label><input id="payAmount" type="number" min="1" value="100" oninput="syncCredits()"></div>
-<div class="field"><label>Credits</label><input id="payCredits" type="number" min="1" value="10"></div>
-<div class="field wide"><label>bKash Transaction ID</label><input id="trxId" placeholder="যেমন: 8A7B6C9D" required></div>
-</div>
-<div class="muted">উদাহরণ: ৳100 পাঠালে 10 credits (আপনার configured package অনুযায়ী)।</div>
-<button class="btn" style="margin-top:12px" onclick="submitPayment()">Payment Submit করুন</button>
-<div id="payStatus" class="status"></div></section>
+<section id="buyCredits" class="card page hidden">
+  <h2>Add Balance — bKash</h2>
+
+  <div class="row">
+    <div class="paybox" style="flex:1">
+      <h3>bKash Personal Number (Send Money)</h3>
+
+      <div style="font-size:28px;font-weight:700;margin:12px 0">
+        <span id="bkashNumber">Loading...</span>
+      </div>
+
+      <p class="muted">
+        উপরের bKash Personal নম্বরে <b>Send Money</b> করুন।
+        তারপর Transaction ID দিয়ে Balance Request জমা দিন।
+        Admin যাচাই ও অনুমোদনের পর আপনার Balance যোগ হবে।
+      </p>
+
+      <p>
+        বর্তমান Balance:
+        <strong>৳<span id="balance">0</span></strong>
+      </p>
+    </div>
+
+    <div class="paybox" style="flex:1">
+      <h3>Balance Request জমা দিন</h3>
+
+      <div class="field">
+        <label>Amount (৳)</label>
+        <input
+          id="payAmount"
+          type="number"
+          min="1"
+          placeholder="যেমন: 100"
+        >
+      </div>
+
+      <div class="field">
+        <label>যে bKash নম্বর থেকে পাঠিয়েছেন</label>
+        <input
+          id="senderBkash"
+          type="text"
+          placeholder="01XXXXXXXXX"
+        >
+      </div>
+
+      <div class="field">
+        <label>Transaction ID</label>
+        <input
+          id="trxId"
+          type="text"
+          placeholder="যেমন: 8A7B6C9D"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label>Note (ঐচ্ছিক)</label>
+        <textarea
+          id="paymentNote"
+          rows="3"
+          placeholder="প্রয়োজনে কিছু লিখুন"
+        ></textarea>
+      </div>
+
+      <button
+        class="btn"
+        style="margin-top:12px"
+        onclick="submitPayment()"
+      >
+        Request Submit করুন
+      </button>
+
+      <div id="payStatus" class="status"></div>
+    </div>
+  </div>
+</section>
 
 <section id="paymentHistory" class="card page hidden"><h2>Payment History</h2><div class="table-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Amount</th><th>Credits</th><th>Transaction ID</th><th>Status</th></tr></thead><tbody id="myPayments"></tbody></table></div></section>
 

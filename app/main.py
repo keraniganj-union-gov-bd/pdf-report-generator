@@ -159,6 +159,28 @@ def prod_init():
                 created_at VARCHAR(40) NOT NULL
             )
         """))
+        c.execute(text("""
+            CREATE TABLE IF NOT EXISTS web_payments (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                credits INTEGER NOT NULL,
+                transaction_id VARCHAR(100) UNIQUE NOT NULL,
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                note TEXT,
+                created_at VARCHAR(40) NOT NULL,
+                verified_at VARCHAR(40)
+            )
+        """))
+        # Profile fields for self-registration.
+        for ddl in [
+            "ALTER TABLE web_users ADD COLUMN full_name VARCHAR(255)",
+            "ALTER TABLE web_users ADD COLUMN mobile VARCHAR(50)"
+        ]:
+            try:
+                c.execute(text(ddl))
+            except Exception:
+                pass
         # Backward-compatible migration for older local web databases.
         try:
             c.execute(text("ALTER TABLE web_generations ADD COLUMN pdf_data TEXT"))
@@ -1149,6 +1171,124 @@ def web_me(web_session: str | None = Cookie(default=None)):
     u = current_user(web_session)
     return {"success":True, "user":{"id":u["id"],"email":u["email"],"role":u["role"]}, "balance":prod_balance(u["id"])}
 
+
+@app.post("/api/auth/register")
+def web_register(
+    full_name: str = Form(...),
+    email: str = Form(...),
+    mobile: str = Form(...),
+    password: str = Form(...),
+    confirm_password: str = Form(...)
+):
+    full_name=full_name.strip()
+    email=email.strip().lower()
+    mobile=mobile.strip()
+    if not full_name or not email or not mobile:
+        raise HTTPException(400, "All fields are required")
+    if len(password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    if password != confirm_password:
+        raise HTTPException(400, "Passwords do not match")
+    with prod_engine.begin() as c:
+        if c.execute(text("SELECT id FROM web_users WHERE email=:e"), {"e":email}).fetchone():
+            raise HTTPException(409, "Email already registered")
+        uid=_next_id(c,"web_users")
+        c.execute(text(
+            "INSERT INTO web_users(id,email,password_hash,role,active,created_at,full_name,mobile) "
+            "VALUES(:id,:e,:p,'customer',1,:t,:n,:m)"
+        ), {"id":uid,"e":email,"p":_hash_password(password),"t":datetime.utcnow().isoformat(),
+             "n":full_name,"m":mobile})
+        c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,0)"), {"u":uid})
+    return {"success":True,"message":"Account created successfully"}
+
+@app.get("/api/customer/status")
+def customer_status(web_session: str | None = Cookie(default=None)):
+    u=current_user(web_session)
+    return {
+        "success":True,
+        "user":{"id":u["id"],"email":u["email"],"role":u["role"]},
+        "balance":prod_balance(u["id"]),
+        "price":int(prod_setting("web_price","1")),
+        "bkash_number":os.getenv("BKASH_NUMBER","01700000000")
+    }
+
+@app.post("/api/customer/payments")
+def customer_submit_payment(
+    amount: int = Form(...),
+    credits: int = Form(...),
+    transaction_id: str = Form(...),
+    web_session: str | None = Cookie(default=None)
+):
+    u=require_customer(web_session)
+    if u["role"] != "customer":
+        raise HTTPException(403,"Customers only")
+    transaction_id=transaction_id.strip()
+    if amount <= 0 or credits <= 0:
+        raise HTTPException(400,"Amount and credits must be positive")
+    if not transaction_id:
+        raise HTTPException(400,"Transaction ID is required")
+    with prod_engine.begin() as c:
+        if c.execute(text("SELECT id FROM web_payments WHERE transaction_id=:t"),{"t":transaction_id}).fetchone():
+            raise HTTPException(409,"This transaction ID was already submitted")
+        pid=_next_id(c,"web_payments")
+        c.execute(text("""
+            INSERT INTO web_payments(id,user_id,amount,credits,transaction_id,status,note,created_at,verified_at)
+            VALUES(:id,:u,:a,:cr,:t,'pending','',:dt,NULL)
+        """),{"id":pid,"u":u["id"],"a":amount,"cr":credits,"t":transaction_id,"dt":datetime.utcnow().isoformat()})
+    return {"success":True,"status":"pending","message":"Payment submitted. Wait for admin approval."}
+
+@app.get("/api/customer/payments")
+def customer_payments(web_session: str | None = Cookie(default=None)):
+    u=require_customer(web_session)
+    with prod_engine.begin() as c:
+        rows=c.execute(text("""
+            SELECT id,amount,credits,transaction_id,status,note,created_at,verified_at
+            FROM web_payments WHERE user_id=:u ORDER BY id DESC LIMIT 100
+        """),{"u":u["id"]}).mappings().all()
+    return {"success":True,"payments":[dict(r) for r in rows]}
+
+@app.get("/api/admin/payments")
+def admin_payments(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        rows=c.execute(text("""
+            SELECT p.id,p.amount,p.credits,p.transaction_id,p.status,p.note,p.created_at,p.verified_at,
+                   u.email,COALESCE(u.full_name,'') full_name
+            FROM web_payments p JOIN web_users u ON u.id=p.user_id
+            ORDER BY p.id DESC LIMIT 200
+        """)).mappings().all()
+    return {"success":True,"payments":[dict(r) for r in rows]}
+
+@app.post("/api/admin/payments/{payment_id}/approve")
+def admin_approve_payment(payment_id:int, web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        p=c.execute(text("SELECT * FROM web_payments WHERE id=:id"),{"id":payment_id}).mappings().first()
+        if not p: raise HTTPException(404,"Payment not found")
+        if p["status"] != "pending": raise HTTPException(400,"Payment is not pending")
+        w=c.execute(text("SELECT credits FROM web_wallets WHERE user_id=:u"),{"u":p["user_id"]}).fetchone()
+        if not w:
+            c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,0)"),{"u":p["user_id"]})
+            bal=0
+        else:
+            bal=int(w[0])
+        new=bal+int(p["credits"])
+        c.execute(text("UPDATE web_wallets SET credits=:c WHERE user_id=:u"),{"c":new,"u":p["user_id"]})
+        c.execute(text("UPDATE web_payments SET status='approved',verified_at=:t,note=:n WHERE id=:id"),
+                  {"t":datetime.utcnow().isoformat(),"n":"Approved by admin","id":payment_id})
+    return {"success":True,"balance":new}
+
+@app.post("/api/admin/payments/{payment_id}/reject")
+def admin_reject_payment(payment_id:int, web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        p=c.execute(text("SELECT status FROM web_payments WHERE id=:id"),{"id":payment_id}).mappings().first()
+        if not p: raise HTTPException(404,"Payment not found")
+        if p["status"] != "pending": raise HTTPException(400,"Payment is not pending")
+        c.execute(text("UPDATE web_payments SET status='rejected',verified_at=:t,note=:n WHERE id=:id"),
+                  {"t":datetime.utcnow().isoformat(),"n":"Rejected by admin","id":payment_id})
+    return {"success":True}
+
 @app.post("/api/admin/customers")
 def admin_create_customer(
     email: str = Form(...), password: str = Form(...), credits: int = Form(0),
@@ -1266,14 +1406,19 @@ async def customer_generate(
     # Charge only after validation and before final generation.
     nid=str(d.get("national_id","")).strip()
     if not nid: raise HTTPException(400,"NID number is required")
-    new_balance=prod_charge(u["id"],price)
+    if u["role"] == "admin":
+        price = 0
+        new_balance = prod_balance(u["id"])
+    else:
+        new_balance = prod_charge(u["id"],price)
     d["qr_b64"]=make_qr(d.get("name_en",""),d.get("national_id",""),d.get("dob",""))
     try:
         out=make_pdf(d)
     except Exception:
         # Refund if rendering fails.
-        with prod_engine.begin() as c:
-            c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),{"a":price,"u":u["id"]})
+        if u["role"] != "admin" and price > 0:
+            with prod_engine.begin() as c:
+                c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),{"a":price,"u":u["id"]})
         raise
     save_generation(u["id"],nid,out.name,price,base64.b64encode(out.read_bytes()).decode())
     return {"success":True,"charged":price,"balance":new_balance,"download":f"/download/{out.name}"}
@@ -1310,4 +1455,4 @@ def home(): return (STATIC/"index.html").read_text(encoding="utf-8")
 def download(filename:str):
     p=GENERATED/filename
     if not p.exists(): raise HTTPException(404,"File not found")
-    return FileResponse(p, media_type="application/pdf", filename=p.name)
+    return FileResponse(p, media_type="application/pdf", filename=p.na

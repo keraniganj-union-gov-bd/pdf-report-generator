@@ -537,43 +537,7 @@ function renderAdminPayments(){
 async function approvePayment(id){let r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
 async function rejectPayment(id){let r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
 async function createCustomer() {
-    const fd = new FormData();
-
-    fd.append("email", document.getElementById("customerEmail").value.trim());
-    fd.append("password", document.getElementById("customerPassword").value);
-    fd.append("full_name", document.getElementById("customerFullName").value.trim());
-    fd.append("mobile", document.getElementById("customerMobile").value.trim());
-    fd.append("role", document.getElementById("customerRole").value);
-
-    const status = document.getElementById("customerStatus");
-
-    try {
-        const r = await fetch("/api/admin/customer", {
-            method: "POST",
-            body: fd
-        });
-
-        const x = await r.json();
-
-        if (!r.ok) {
-            status.textContent = x.detail || "Customer create failed";
-            return;
-        }
-
-        status.textContent = "Customer created successfully";
-
-        document.getElementById("customerEmail").value = "";
-        document.getElementById("customerPassword").value = "";
-        document.getElementById("customerFullName").value = "";
-        document.getElementById("customerMobile").value = "";
-
-        closeCustomerForm();
-        loadCustomers();
-
-    } catch (err) {
-        status.textContent = "Error: " + err.message;
-    }
-}
+    return saveCustomer();
 }
 async function loadCustomers(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerBody").innerHTML=x.customers.map(c=>`<tr><td>${c.email}</td><td>${c.credits}</td><td>${c.active?"Active":"Disabled"}</td><td><button class="btn secondary" onclick="credit(${c.id},10)">+10</button> <button class="btn danger" onclick="credit(${c.id},-10)">-10</button></td></tr>`).join("")}
 async function credit(id,amount){let fd=new FormData();fd.append("amount",amount);let r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){let x=await r.json();alert(x.detail||"Failed")}loadCustomers()}
@@ -641,16 +605,30 @@ function openCustomerForm() {
 }
 </script>
 <script>
+<script>
 async function saveCustomer() {
     try {
-        const editId = document.getElementById("customerEditId")?.value || "";
+        const editId =
+            document.getElementById("customerEditId")?.value.trim() || "";
 
-        const name = document.getElementById("customerFullName")?.value.trim() || "";
-        const mobile = document.getElementById("customerMobile")?.value.trim() || "";
-        const email = document.getElementById("customerEmail")?.value.trim() || "";
-        const password = document.getElementById("customerPassword")?.value || "";
-        const role = document.getElementById("customerRole")?.value || "customer";
-        const active = document.getElementById("customerActive")?.value || "1";
+        const name =
+            document.getElementById("customerFullName")?.value.trim() || "";
+
+        const mobile =
+            document.getElementById("customerMobile")?.value.trim() || "";
+
+        const email =
+            document.getElementById("customerEmail")?.value.trim().toLowerCase() || "";
+
+        const password =
+            document.getElementById("customerPassword")?.value || "";
+
+        const role =
+            document.getElementById("customerRole")?.value || "customer";
+
+        const active =
+            document.getElementById("customerActive")?.value || "1";
+
 
         if (!name) {
             alert("Full Name দিন");
@@ -672,63 +650,113 @@ async function saveCustomer() {
             return;
         }
 
+        if (!editId && password.length < 6) {
+            alert("Password কমপক্ষে 6 characters হতে হবে");
+            return;
+        }
+
+
         const fd = new FormData();
 
-        fd.append("name", name);
+        fd.append("email", email);
         fd.append("full_name", name);
         fd.append("mobile", mobile);
-        fd.append("email", email);
         fd.append("role", role);
-        fd.append("active", active);
 
-        if (password) {
-            fd.append("password", password);
-        }
 
-        let url = "/api/admin/customers";
+        let url;
         let method = "POST";
 
-        if (editId) {
-            url = "/api/admin/customers/" + editId;
-            method = "PUT";
+
+        /*
+         * ADD CUSTOMER
+         */
+        if (!editId) {
+
+            fd.append("password", password);
+
+            url = "/api/admin/customer";
+
         }
+
+        /*
+         * EDIT CUSTOMER
+         */
+        else {
+
+            fd.append("user_id", editId);
+            fd.append("active", active);
+
+            if (password) {
+                fd.append("new_password", password);
+            }
+
+            url = "/api/admin/customer/update";
+        }
+
 
         const response = await fetch(url, {
             method: method,
-            body: fd
+            body: fd,
+            credentials: "same-origin"
         });
+
 
         const text = await response.text();
 
         let data = {};
+
         try {
             data = text ? JSON.parse(text) : {};
         } catch (e) {
-            data = { detail: text };
+            data = {
+                detail: text || "Unknown server response"
+            };
         }
 
+
         if (!response.ok) {
-            alert(data.detail || data.message || "Customer save failed");
+
+            alert(
+                data.detail ||
+                data.message ||
+                "Customer save failed"
+            );
+
             return;
         }
 
-        alert(editId ? "Customer updated successfully." : "Customer created successfully.");
+
+        alert(
+            editId
+                ? "Customer updated successfully."
+                : "Customer created successfully."
+        );
+
 
         if (typeof closeCustomerForm === "function") {
             closeCustomerForm();
         }
 
+
         if (typeof loadCustomers === "function") {
             await loadCustomers();
         }
+
 
         if (typeof loadAdmin === "function") {
             await loadAdmin();
         }
 
+
     } catch (error) {
+
         console.error("saveCustomer error:", error);
-        alert("Save Customer error: " + error.message);
+
+        alert(
+            "Save Customer error: " +
+            error.message
+        );
     }
 }
 </script>

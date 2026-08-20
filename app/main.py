@@ -1455,4 +1455,4 @@ def home(): return (STATIC/"index.html").read_text(encoding="utf-8")
 def download(filename:str):
     p=GENERATED/filename
     if not p.exists(): raise HTTPException(404,"File not found")
-    return FileResponse(p, media_type="application/pdf", filename=p.na
+    return FileResponse(p, media_type="application/pdf", filename=p.name)

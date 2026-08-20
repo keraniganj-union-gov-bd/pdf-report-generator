@@ -1211,6 +1211,34 @@ def admin_web_price(web_price:int=Form(...), web_session: str | None=Cookie(defa
     if web_price < 0: raise HTTPException(400,"Price cannot be negative")
     prod_set_setting("web_price",str(web_price))
     return {"success":True,"web_price":web_price}
+@app.get("/api/admin/bkash")
+def admin_bkash_status(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    return {
+        "success": True,
+        "bkash_number": prod_setting("bkash_number", "")
+    }
+
+
+@app.post("/api/admin/bkash")
+async def admin_bkash_save(
+    bkash_number: str = Form(...),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+
+    bkash_number = bkash_number.strip()
+
+    if not bkash_number:
+        raise HTTPException(400, "bKash number is required")
+
+    prod_set_setting("bkash_number", bkash_number)
+
+    return {
+        "success": True,
+        "bkash_number": bkash_number
+    }
+
 
 @app.post("/api/admin/background")
 async def admin_background(file:UploadFile=File(...), web_session: str | None=Cookie(default=None)):

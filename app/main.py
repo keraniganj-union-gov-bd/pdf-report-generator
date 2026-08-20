@@ -998,24 +998,52 @@ def selected_background_data_url():
 
 def make_pdf(d):
     job = uuid.uuid4().hex[:12]
-    out = GENERATED / f"V1_{re.sub(r'[^0-9A-Za-z_-]', '', d.get('national_id','report'))}.pdf"
+
+    safe_id = re.sub(
+        r"[^0-9A-Za-z_-]",
+        "",
+        str(d.get("national_id") or "report")
+    )
+
+    out = GENERATED / f"V1_{safe_id}.pdf"
     html_path = GENERATED / f"render_{job}.html"
 
-    photo = (
-        f'<img class="photo" src="data:image/jpeg;base64,{d.get("photo_b64","")}">'
-        if d.get("photo_b64") else '<div class="photo empty">ছবি</div>'
+    # ---------- Images ----------
+    photo_b64 = d.get("photo_b64", "")
+    if photo_b64:
+        photo = (
+            f'<img class="photo" '
+            f'src="data:image/jpeg;base64,{photo_b64}">'
+        )
+    else:
+        photo = '<div class="photo empty">ছবি</div>'
+
+    name_en = d.get("name_en", "")
+    photo_name = (
+        f'<div class="photo-name">{esc(name_en)}</div>'
+        if name_en else ""
     )
-    photo_name = f'<div class="photo-name">{esc(d.get("name_en",""))}</div>' if d.get("name_en") else ""
+
+    qr_b64 = d.get("qr_b64", "")
     qr = (
-        f'<img class="qr" src="data:image/png;base64,{d.get("qr_b64","")}">'
-        if d.get("qr_b64") else ""
+        f'<img class="qr" src="data:image/png;base64,{qr_b64}">'
+        if qr_b64 else ""
     )
+
+    # Background is already converted to a data URL by your existing function.
     bg = selected_background_data_url()
     bg_html = f'<img class="page-bg" src="{bg}">' if bg else ""
 
+    # ---------- Table helper ----------
     def row(label, value):
-        return f'<tr><td class="label">{esc(label)}</td><td class="value">{esc(value)}</td></tr>'
+        return (
+            f'<tr>'
+            f'<td class="label">{esc(label)}</td>'
+            f'<td class="value">{esc(value)}</td>'
+            f'</tr>'
+        )
 
+    # ---------- Data rows ----------
     national_rows = "".join([
         row("জাতীয় পরিচয়পত্র নম্বর", d.get("national_id")),
         row("পিন নম্বর", d.get("pin")),
@@ -1024,6 +1052,7 @@ def make_pdf(d):
         row("সিরিয়াল নম্বর", d.get("serial_no")),
         row("ভোটার এরিয়া", d.get("voter_area")),
     ])
+
     personal_rows = "".join([
         row("নাম (বাংলা)", d.get("name_bn")),
         row("নাম (ইংরেজী)", d.get("name_en")),
@@ -1032,6 +1061,7 @@ def make_pdf(d):
         row("মাতার নাম", d.get("mother")),
         row("স্বামী/স্ত্রীর নাম", d.get("spouse")),
     ])
+
     other_rows = "".join([
         row("লিঙ্গ", d.get("gender")),
         row("শিক্ষাগত যোগ্যতা", d.get("education")),
@@ -1040,109 +1070,396 @@ def make_pdf(d):
         row("জন্মস্থান", d.get("birth_place")),
     ])
 
+    # ---------- HTML ----------
     html_doc = f"""<!doctype html>
 <html lang="bn">
 <head>
 <meta charset="utf-8">
+
 <style>
+
 @font-face {{
   font-family: Bangla;
   src: url('file://{FONT.as_posix()}');
   font-weight:300;
 }}
+
 @font-face {{
   font-family: Bangla;
   src: url('file://{FONT_REGULAR.as_posix()}');
   font-weight:400;
 }}
+
 @font-face {{
   font-family: Bangla;
   src: url('file://{FONT_SEMIBOLD.as_posix()}');
   font-weight:600;
 }}
-@page {{ size:A4; margin:0; }}
-* {{ box-sizing:border-box; }}
-body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
-.header, .notice, .section, table, .address, .footer {{ background:rgba(255,255,255,.96); border:0 !important; }}
-.page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm; object-fit:fill; opacity:1; z-index:0; pointer-events:none; }}
-.report-content {{ position:relative; z-index:1; }}
-.header {{ padding:7px 10px; text-align:center; margin-bottom:7px; }}
-h1 {{ margin:0; font-size:19px; }}
-.sub {{ font-size:8px; font-weight:bold; margin-top:2px; }}
-.notice {{ margin:5px 0 8px; padding:4px 7px; text-align:center; font-size:8px; font-weight:bold; }}
-.top {{ display:block; position:relative; }}
-.media {{ position:fixed; left:0; top:92mm; width:71.12mm; display:flex; flex-direction:column; align-items:center; z-index:2; }}
-.photo-name {{ margin-top:2mm; font-family:"Segoe UI","Arial",sans-serif; font-size:14px; font-weight:700; text-align:center; max-width:60mm; word-break:break-word; letter-spacing:.1px; }}
-.photo {{ width:30.48mm; height:auto; max-height:none; object-fit:contain; border:0.6pt solid #777; border-radius:2.2mm; }}
-.empty {{ display:flex; align-items:center; justify-content:center; }}
-.qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}
-.section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:700; line-height:1.18; }}
-table {{ width:100%; border-collapse:collapse; }}
-td {{ border:0.45pt solid #dedede !important; padding:3px 5px; vertical-align:top; background:#fff; }}
-.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:#f7f7f7; border:0.45pt solid #dedede !important; }}
-.value {{ background:#fff; border:0.45pt solid #dedede !important; font-weight:400; }}
-.address {{ border:0.45pt solid #e6e6e6 !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
-.footer {{ margin-top:8px; padding-top:4px; text-align:center; font-size:8px; font-weight:600; }}
+
+@page {{
+  size:A4;
+  margin:0;
+}}
+
+* {{
+  box-sizing:border-box;
+}}
+
+html, body {{
+  margin:0;
+  padding:0;
+}}
+
+body {{
+  font-family:Bangla,sans-serif;
+  color:#111;
+  font-size:13px;
+  font-weight:400;
+  line-height:1.24;
+  -webkit-font-smoothing:antialiased;
+  margin:0;
+  padding:2.5in 0.8in 1.2in 2.5in;
+}}
+
+.header,
+.notice,
+.section,
+table,
+.address,
+.footer {{
+  background:rgba(255,255,255,.96);
+  border:0 !important;
+}}
+
+.page-bg {{
+  position:fixed;
+  left:0;
+  top:0;
+  width:210mm;
+  height:297mm;
+  object-fit:fill;
+  opacity:1;
+  z-index:0;
+  pointer-events:none;
+}}
+
+.report-content {{
+  position:relative;
+  z-index:1;
+}}
+
+.header {{
+  padding:7px 10px;
+  text-align:center;
+  margin-bottom:7px;
+}}
+
+h1 {{
+  margin:0;
+  font-size:19px;
+}}
+
+.sub {{
+  font-size:8px;
+  font-weight:bold;
+  margin-top:2px;
+}}
+
+.notice {{
+  margin:5px 0 8px;
+  padding:4px 7px;
+  text-align:center;
+  font-size:8px;
+  font-weight:bold;
+}}
+
+.top {{
+  display:block;
+  position:relative;
+}}
+
+.media {{
+  position:fixed;
+  left:0;
+  top:92mm;
+  width:71.12mm;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  z-index:2;
+}}
+
+.photo-name {{
+  margin-top:2mm;
+  font-family:"Segoe UI","Arial",sans-serif;
+  font-size:14px;
+  font-weight:700;
+  text-align:center;
+  max-width:60mm;
+  word-break:break-word;
+  letter-spacing:.1px;
+}}
+
+.photo {{
+  width:30.48mm;
+  height:auto;
+  max-height:none;
+  object-fit:contain;
+  border:0.6pt solid #777;
+  border-radius:2.2mm;
+}}
+
+.empty {{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}}
+
+.qr {{
+  width:25.4mm;
+  height:25.4mm;
+  margin-top:4mm;
+}}
+
+.section {{
+  margin-top:3px;
+  margin-bottom:1px;
+  background:#c2e4eb;
+  border:0 !important;
+  padding:4px 8px;
+  font-size:17px;
+  font-weight:700;
+  line-height:1.18;
+}}
+
+table {{
+  width:100%;
+  border-collapse:collapse;
+}}
+
+td {{
+  border:0.45pt solid #dedede !important;
+  padding:3px 5px;
+  vertical-align:top;
+  background:#fff;
+}}
+
+.label {{
+  width:35.5%;
+  font-weight:400;
+  font-size:13px;
+  line-height:1.32;
+  -webkit-font-smoothing:antialiased;
+  background:#f7f7f7;
+  border:0.45pt solid #dedede !important;
+}}
+
+.value {{
+  background:#fff;
+  border:0.45pt solid #dedede !important;
+  font-weight:400;
+}}
+
+.address {{
+  border:0.45pt solid #e6e6e6 !important;
+  padding:4px 6px;
+  line-height:1.40;
+  font-weight:400;
+  min-height:0;
+  margin-bottom:3px;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  background:#fff;
+}}
+
+.footer {{
+  margin-top:8px;
+  padding-top:4px;
+  text-align:center;
+  font-size:8px;
+  font-weight:600;
+}}
+
 </style>
 </head>
+
 <body>
+
 {bg_html}
+
 <div class="report-content">
+
 <div class="header">
   <h1></h1>
-  
 </div>
-
-
 
 <div class="top">
-  <div class="media">{photo}{photo_name}{qr}</div>
-  <div>
-    <div class="section" style="margin-top:0">জাতীয় পরিচিতি তথ্য</div>
-    <table>{national_rows}</table>
 
-    <div class="section">ব্যক্তিগত তথ্য</div>
-    <table>{personal_rows}</table>
-
-    <div class="section">অন্যান্য তথ্য</div>
-    <table>{other_rows}</table>
+  <div class="media">
+    {photo}
+    {photo_name}
+    {qr}
   </div>
+
+  <div>
+
+    <div class="section" style="margin-top:0">
+      জাতীয় পরিচিতি তথ্য
+    </div>
+
+    <table>
+      {national_rows}
+    </table>
+
+    <div class="section">
+      ব্যক্তিগত তথ্য
+    </div>
+
+    <table>
+      {personal_rows}
+    </table>
+
+    <div class="section">
+      অন্যান্য তথ্য
+    </div>
+
+    <table>
+      {other_rows}
+    </table>
+
+  </div>
+
 </div>
 
-<div class="section">বর্তমান ঠিকানা</div>
-<div class="address">{esc(d.get("present_address"))}</div>
+<div class="section">
+  বর্তমান ঠিকানা
+</div>
 
-<div class="section">স্থায়ী ঠিকানা</div>
-<div class="address">{esc(d.get("permanent_address"))}</div>
+<div class="address">
+  {esc(d.get("present_address"))}
+</div>
 
+<div class="section">
+  স্থায়ী ঠিকানা
+</div>
+
+<div class="address">
+  {esc(d.get("permanent_address"))}
+</div>
 
 </div>
+
 </body>
-</html>"""
+</html>
+"""
 
+    # ---------- Write HTML ----------
     html_path.write_text(html_doc, encoding="utf-8")
+
+    # ---------- Find browser ----------
     browser = _find_browser()
+
     if not browser:
-        raise HTTPException(500, "Chrome or Microsoft Edge was not found.")
+        raise HTTPException(
+            500,
+            "Chrome or Microsoft Edge was not found."
+        )
 
+    # ---------- Optimized Chrome command ----------
     cmd = [
-        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
-        "--disable-extensions", "--no-pdf-header-footer",
-        "--run-all-compositor-stages-before-draw", "--virtual-time-budget=1500",
-        f"--print-to-pdf={str(out)}", html_path.resolve().as_uri()
-    ]
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
-        if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
-            cmd[1] = "--headless"
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
-        if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
-            raise HTTPException(500, (result.stderr or result.stdout or "PDF generation failed")[-1200:])
-        return out
-    finally:
-        try: html_path.unlink(missing_ok=True)
-        except Exception: pass
+        browser,
 
+        "--headless=new",
+
+        # Render stability
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+
+        # Remove unnecessary Chrome work
+        "--disable-extensions",
+        "--disable-background-networking",
+        "--disable-background-timer-throttling",
+        "--disable-backgrounding-occluded-windows",
+        "--disable-renderer-backgrounding",
+        "--disable-sync",
+
+        # Faster startup
+        "--no-first-run",
+        "--no-default-browser-check",
+
+        # Disable unnecessary browser features
+        "--disable-features=Translate,BackForwardCache",
+
+        # PDF
+        "--no-pdf-header-footer",
+
+        # Wait only a short time for page rendering
+        "--virtual-time-budget=300",
+
+        f"--print-to-pdf={str(out)}",
+
+        html_path.resolve().as_uri(),
+    ]
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=20
+        )
+
+        # Fallback only if the first attempt really fails.
+        if (
+            result.returncode != 0
+            or not out.exists()
+            or out.stat().st_size < 1000
+        ):
+            fallback_cmd = [
+                browser,
+                "--headless",
+                "--no-sandbox",
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--no-pdf-header-footer",
+                "--virtual-time-budget=300",
+                f"--print-to-pdf={str(out)}",
+                html_path.resolve().as_uri(),
+            ]
+
+            result = subprocess.run(
+                fallback_cmd,
+                capture_output=True,
+                text=True,
+                timeout=20
+            )
+
+        if (
+            result.returncode != 0
+            or not out.exists()
+            or out.stat().st_size < 1000
+        ):
+            raise HTTPException(
+                500,
+                (
+                    result.stderr
+                    or result.stdout
+                    or "PDF generation failed"
+                )[-1200:]
+            )
+
+        return out
+
+    finally:
+        try:
+            html_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 # -------------------------- Customer/Admin web API --------------------------
 

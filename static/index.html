@@ -178,7 +178,150 @@
 
 <section id="adminPayments" class="card page hidden"><h2>bKash Payments</h2><p>Customer payment verify করুন। Approve করলে credit automatically যোগ হবে।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>Customer</th><th>Amount</th><th>Credits</th><th>Transaction</th><th>Status</th><th>Action</th></tr></thead><tbody id="paymentBody"></tbody></table></div></section>
 
-<section id="customers" class="card page hidden"><h2>Customer Management</h2><p>Customer balance manually add/subtract করতে পারবেন।</p><div class="form-grid"><div class="field"><label>Customer Email</label><input id="newEmail" type="email"></div><div class="field"><label>Initial Balance</label><input id="newCredits" type="number" min="0" value="0"></div><div class="field"><label>Password</label><input id="newPassword" type="password"></div></div><button class="btn" onclick="createCustomer()">Create Customer</button><div id="adminStatus" class="status"></div><div class="table-wrap"><table class="tbl"><thead><tr><th>Email</th><th>Balance</th><th>Status</th><th>Change</th></tr></thead><tbody id="customerBody"></tbody></table></div></section>
+<section id="customers" class="card page hidden">
+
+  <div class="row" style="align-items:center;justify-content:space-between">
+    <div>
+      <h2>Customers</h2>
+      <p class="muted">
+        Add, edit, activate/deactivate and remove customer accounts.
+      </p>
+    </div>
+
+    <button class="btn" onclick="openCustomerForm()">
+      + Add Customer
+    </button>
+  </div>
+
+  <div
+    id="customerStatus"
+    class="status"
+    style="margin:12px 0"
+  ></div>
+
+  <div class="table-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Mobile</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+
+      <tbody id="customersTableBody">
+        <tr>
+          <td colspan="8">
+            Loading...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Add/Edit Customer -->
+  <div
+    id="customerFormBox"
+    class="paybox"
+    style="display:none;margin-top:20px"
+  >
+
+    <h3 id="customerFormTitle">
+      Add Customer
+    </h3>
+
+    <input
+      type="hidden"
+      id="customerEditId"
+    >
+
+    <div class="form-grid">
+
+      <div class="field">
+        <label>Full Name</label>
+        <input
+          id="customerFullName"
+          type="text"
+          placeholder="Customer name"
+        >
+      </div>
+
+      <div class="field">
+        <label>Mobile</label>
+        <input
+          id="customerMobile"
+          type="text"
+          placeholder="01XXXXXXXXX"
+        >
+      </div>
+
+      <div class="field">
+        <label>Email</label>
+        <input
+          id="customerEmail"
+          type="email"
+          placeholder="customer@example.com"
+          required
+        >
+      </div>
+
+      <div class="field">
+        <label>New Password</label>
+        <input
+          id="customerPassword"
+          type="password"
+          placeholder="New password"
+        >
+        <small class="muted">
+          Add customer-এর সময় required. Edit-এর সময় blank রাখলে password change হবে না।
+        </small>
+      </div>
+
+      <div class="field">
+        <label>Role</label>
+        <select id="customerRole">
+          <option value="customer">Customer</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Status</label>
+        <select id="customerActive">
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="row" style="margin-top:14px">
+
+      <button
+        class="btn"
+        onclick="saveCustomer()"
+      >
+        Save Customer
+      </button>
+
+      <button
+        class="btn"
+        type="button"
+        onclick="closeCustomerForm()"
+      >
+        Cancel
+      </button>
+
+    </div>
+
+  </div>
+
+</section>
 
 <section id="background" class="card page hidden"><h2>Default Background</h2><p>Admin একবার background সেট করবে।</p><div class="row"><input id="bg" type="file" accept=".jpg,.jpeg,.png,.webp"><button class="btn" onclick="setBackground()">Upload & Set Default</button></div><div id="bgStatus" class="status"></div></section>
 

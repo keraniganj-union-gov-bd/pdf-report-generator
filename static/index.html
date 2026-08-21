@@ -310,6 +310,7 @@
       </button>
 
       <button
+        type="button"
         class="btn"
         type="button"
         onclick="closeCustomerForm()"
@@ -606,84 +607,121 @@ function openCustomerForm() {
 </script>
 <script>
 <script>
-async function saveCustomer() {
+<script>
+window.saveCustomer = async function () {
+
+    console.log("SAVE CUSTOMER BUTTON CLICKED");
+
     try {
-        const fd = new FormData();
+        const emailEl = document.getElementById("customerEmail");
+        const passwordEl = document.getElementById("customerPassword");
+        const fullNameEl = document.getElementById("customerFullName");
+        const mobileEl = document.getElementById("customerMobile");
+        const roleEl = document.getElementById("customerRole");
 
-        fd.append(
-            "email",
-            document.getElementById("customerEmail").value.trim()
-        );
-
-        fd.append(
-            "password",
-            document.getElementById("customerPassword").value
-        );
-
-        fd.append(
-            "full_name",
-            document.getElementById("customerFullName").value.trim()
-        );
-
-        fd.append(
-            "mobile",
-            document.getElementById("customerMobile").value.trim()
-        );
-
-        fd.append(
-            "role",
-            document.getElementById("customerRole").value || "customer"
-        );
-
-        const r = await fetch("/api/admin/customer", {
-            method: "POST",
-            body: fd
-        });
-
-        const text = await r.text();
-
-        console.log("SAVE CUSTOMER STATUS:", r.status);
-        console.log("SAVE CUSTOMER RESPONSE:", text);
-
-        let x = {};
-
-        try {
-            x = JSON.parse(text);
-        } catch (e) {
-            x = {};
+        if (!emailEl || !passwordEl || !fullNameEl || !mobileEl || !roleEl) {
+            alert("Customer form field পাওয়া যাচ্ছে না।");
+            console.error({
+                emailEl,
+                passwordEl,
+                fullNameEl,
+                mobileEl,
+                roleEl
+            });
+            return;
         }
 
-        if (!r.ok) {
+        const email = emailEl.value.trim();
+        const password = passwordEl.value;
+        const fullName = fullNameEl.value.trim();
+        const mobile = mobileEl.value.trim();
+        const role = roleEl.value || "customer";
+
+        if (!fullName) {
+            alert("Full Name দিন");
+            return;
+        }
+
+        if (!mobile) {
+            alert("Mobile দিন");
+            return;
+        }
+
+        if (!email) {
+            alert("Email দিন");
+            return;
+        }
+
+        if (!password) {
+            alert("Password দিন");
+            return;
+        }
+
+        const fd = new FormData();
+
+        fd.append("email", email);
+        fd.append("password", password);
+        fd.append("full_name", fullName);
+        fd.append("mobile", mobile);
+        fd.append("role", role);
+
+        console.log("Sending customer data...");
+
+        const response = await fetch("/api/admin/customer", {
+            method: "POST",
+            body: fd,
+            credentials: "same-origin"
+        });
+
+        const responseText = await response.text();
+
+        console.log("STATUS:", response.status);
+        console.log("RESPONSE:", responseText);
+
+        let data = {};
+
+        try {
+            data = JSON.parse(responseText);
+        } catch (e) {
+            console.log("Response is not JSON");
+        }
+
+        if (!response.ok) {
             alert(
-                "Customer save failed!\n\n" +
-                "Status: " + r.status + "\n" +
-                "Error: " + (x.detail || x.message || text || "Unknown error")
+                "Customer Save Failed\n\n" +
+                "Status: " + response.status + "\n" +
+                (data.detail || data.message || responseText || "Unknown error")
             );
             return;
         }
 
-        alert(x.message || "Customer created successfully");
+        alert(data.message || "Customer created successfully");
 
-        const box = document.getElementById("customerFormBox");
-        if (box) {
-            box.style.display = "none";
+        emailEl.value = "";
+        passwordEl.value = "";
+        fullNameEl.value = "";
+        mobileEl.value = "";
+
+        if (roleEl) {
+            roleEl.value = "customer";
         }
 
-        document.getElementById("customerFullName").value = "";
-        document.getElementById("customerMobile").value = "";
-        document.getElementById("customerEmail").value = "";
-        document.getElementById("customerPassword").value = "";
-
         if (typeof loadCustomers === "function") {
-            loadCustomers();
+            await loadCustomers();
         }
 
         if (typeof loadAdmin === "function") {
-            loadAdmin();
+            await loadAdmin();
         }
 
-    } catch (err) {
-        console.error(err);
-        alert("Save Customer Error:\n\n" + err.message);
+    } catch (error) {
+
+        console.error("SAVE CUSTOMER ERROR:", error);
+
+        alert(
+            "Customer Save Error\n\n" +
+            error.message
+        );
     }
-}
+};
+</script>

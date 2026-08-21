@@ -1769,6 +1769,56 @@ async def admin_update_customer(
     }
 
 
+@app.post("/api/admin/customer/balance")
+def admin_adjust_customer_balance(
+    user_id: int = Form(...),
+    amount: int = Form(...),
+    web_session: str | None = Cookie(default=None)
+):
+    """Admin-only manual balance adjustment. Positive=add, negative=deduct."""
+    require_admin(web_session)
+
+    amount = int(amount)
+    if amount == 0:
+        raise HTTPException(400, "Balance amount cannot be zero")
+
+    with prod_engine.begin() as c:
+        user = c.execute(
+            text("SELECT id, role FROM web_users WHERE id=:user_id"),
+            {"user_id": user_id}
+        ).mappings().first()
+
+        if not user or user["role"] != "customer":
+            raise HTTPException(404, "Customer not found")
+
+        wallet = c.execute(
+            text("SELECT credits FROM web_wallets WHERE user_id=:user_id"),
+            {"user_id": user_id}
+        ).fetchone()
+        current_balance = int(wallet[0]) if wallet else 0
+        new_balance = current_balance + amount
+
+        if new_balance < 0:
+            raise HTTPException(400, "Balance cannot go below 0")
+
+        if wallet:
+            c.execute(
+                text("UPDATE web_wallets SET credits=:credits WHERE user_id=:user_id"),
+                {"credits": new_balance, "user_id": user_id}
+            )
+        else:
+            c.execute(
+                text("INSERT INTO web_wallets(user_id,credits) VALUES(:user_id,:credits)"),
+                {"user_id": user_id, "credits": new_balance}
+            )
+
+    return {
+        "success": True,
+        "message": "Balance added successfully." if amount > 0 else "Balance deducted successfully.",
+        "balance": new_balance
+    }
+
+
 @app.post("/api/admin/customer/delete")
 async def admin_delete_customer(
     user_id: int = Form(...),
@@ -1935,7 +1985,9 @@ async def customer_generate(
     except Exception:
         raise HTTPException(400, "Invalid data JSON")
 
-    sync_default_background_to_local()
+    # The background is already synced at startup or after an admin upload.
+    # Keeping this out of the hot path removes an unnecessary DB read + image
+    # decode/write from every PDF generation request.
     price = int(prod_setting("web_price", "1"))
     nid = str(d.get("national_id", "")).strip()
     if not nid:

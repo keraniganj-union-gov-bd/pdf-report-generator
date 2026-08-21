@@ -13,7 +13,12 @@ import subprocess, time, shutil, platform, secrets, hashlib, hmac
 from typing import Optional
 
 from fastapi import Cookie, Depends
-from weasyprint import HTML as WeasyHTML
+# WeasyPrint is optional. Render/production environments may not have it.
+# Never let a missing optional PDF engine prevent the FastAPI app from starting.
+try:
+    from weasyprint import HTML as WeasyHTML
+except ImportError:
+    WeasyHTML = None
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
 BASE = Path(__file__).resolve().parent.parent
@@ -1153,22 +1158,22 @@ td {{ border:0.10pt solid #d5d5d5 !important; padding:3px 5px; vertical-align:to
 </body>
 </html>"""
 
-    # Fast path: WeasyPrint renders the HTML/CSS in-process and avoids
-    # launching Chromium for every request. This is the main performance
-    # improvement for PDF generation.
-    try:
-        WeasyHTML(
-            string=html_doc,
-            base_url=str(BASE)
-        ).write_pdf(str(out))
+    # Optional fast path: if WeasyPrint is installed, use it in-process.
+    # On Render/free deployments it may not be installed, so we MUST fall
+    # back cleanly to the existing Chromium renderer instead of crashing
+    # during application import.
+    if WeasyHTML is not None:
+        try:
+            WeasyHTML(
+                string=html_doc,
+                base_url=str(BASE)
+            ).write_pdf(str(out))
 
-        if out.exists() and out.stat().st_size >= 1000:
-            return out
-        raise RuntimeError("WeasyPrint produced an empty PDF")
-    except Exception as fast_error:
-        # Compatibility fallback: keep the old Chromium renderer available
-        # if a particular document/resource is not supported by WeasyPrint.
-        print("FAST PDF RENDER ERROR:", repr(fast_error))
+            if out.exists() and out.stat().st_size >= 1000:
+                return out
+            raise RuntimeError("WeasyPrint produced an empty PDF")
+        except Exception as fast_error:
+            print("FAST PDF RENDER ERROR:", repr(fast_error))
 
     browser = _find_browser()
     if not browser:

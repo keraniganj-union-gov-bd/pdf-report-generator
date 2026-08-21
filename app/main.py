@@ -162,6 +162,30 @@ def prod_init():
                 created_at VARCHAR(40) NOT NULL
             )
         """))
+        c.execute(text("""
+            CREATE TABLE IF NOT EXISTS web_payments (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                amount INTEGER NOT NULL,
+                credits INTEGER NOT NULL,
+                transaction_id VARCHAR(100) UNIQUE NOT NULL,
+                sender_bkash VARCHAR(50) DEFAULT '',
+                status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                note TEXT DEFAULT '',
+                created_at VARCHAR(40) NOT NULL,
+                verified_at VARCHAR(40)
+            )
+        """))
+        # Backward-compatible fields for payment requests created by older versions.
+        for ddl in [
+            "ALTER TABLE web_payments ADD COLUMN sender_bkash VARCHAR(50)",
+            "ALTER TABLE web_payments ADD COLUMN note TEXT",
+            "ALTER TABLE web_payments ADD COLUMN verified_at VARCHAR(40)"
+        ]:
+            try:
+                c.execute(text(ddl))
+            except Exception:
+                pass
         # Backward-compatible migration for older local web databases.
         try:
             c.execute(text("ALTER TABLE web_generations ADD COLUMN pdf_data TEXT"))
@@ -177,7 +201,7 @@ def prod_init():
                 "VALUES(:id,:e,:p,'admin',1,:t)"
             ), {"id": 1, "e": ADMIN_EMAIL, "p": _hash_password(ADMIN_PASSWORD), "t": datetime.utcnow().isoformat()})
             c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(1,0)"))
-        for key, value in [("web_price","1"),("api_price","1")]:
+        for key, value in [("web_price","1"),("api_price","1"),("bkash_number","01925211591")]:
             c.execute(text(
                 "INSERT INTO web_settings(key,value) VALUES(:k,:v) "
                 "ON CONFLICT(key) DO NOTHING"
@@ -1052,9 +1076,9 @@ def make_pdf(d):
   font-weight:600;
 }}
 @page {{ size:A4; margin:0; }}
-* {{ box-sizing:border-box; }}
-body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
-.header, .notice, .section, table, .address, .footer {{ background:rgba(255,255,255,.96); border:0 !important; }}
+* {{ box-sizing:border-box; text-shadow:none !important; box-shadow:none !important; -webkit-text-stroke:0 !important; }}
+body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; text-shadow:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
+.header, .notice, .section, table, .address, .footer {{ background:rgba(255,255,255,.96); border:0 !important; box-shadow:none !important; text-shadow:none !important; }}
 .page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm; object-fit:fill; opacity:1; z-index:0; pointer-events:none; }}
 .report-content {{ position:relative; z-index:1; }}
 .header {{ padding:7px 10px; text-align:center; margin-bottom:7px; }}
@@ -1069,10 +1093,10 @@ h1 {{ margin:0; font-size:19px; }}
 .qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}
 .section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:700; line-height:1.18; }}
 table {{ width:100%; border-collapse:collapse; }}
-td {{ border:0.45pt solid #dedede !important; padding:3px 5px; vertical-align:top; background:#fff; }}
-.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:#f7f7f7; border:0.45pt solid #dedede !important; }}
-.value {{ background:#fff; border:0.45pt solid #dedede !important; font-weight:400; }}
-.address {{ border:0.45pt solid #e6e6e6 !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
+td {{ border:0.10pt solid #d5d5d5 !important; padding:3px 5px; vertical-align:top; background:#fff; box-shadow:none !important; text-shadow:none !important; }}
+.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:#f7f7f7; border:0.10pt solid #d5d5d5 !important; }}
+.value {{ background:#fff; border:0.10pt solid #d5d5d5 !important; font-weight:400; box-shadow:none !important; }}
+.address {{ border:0.10pt solid #e6e6e6 !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
 .footer {{ margin-top:8px; padding-top:4px; text-align:center; font-size:8px; font-weight:600; }}
 </style>
 </head>
@@ -1118,8 +1142,11 @@ td {{ border:0.45pt solid #dedede !important; padding:3px 5px; vertical-align:to
 
     cmd = [
         browser, "--headless=new", "--disable-gpu", "--no-sandbox",
-        "--disable-extensions", "--no-pdf-header-footer",
-        "--run-all-compositor-stages-before-draw", "--virtual-time-budget=1500",
+        "--disable-extensions", "--disable-dev-shm-usage",
+        "--no-first-run", "--no-default-browser-check",
+        "--disable-background-networking", "--disable-sync",
+        "--disable-translate", "--no-pdf-header-footer",
+        "--run-all-compositor-stages-before-draw", "--virtual-time-budget=250",
         f"--print-to-pdf={str(out)}", html_path.resolve().as_uri()
     ]
     try:
@@ -1282,7 +1309,7 @@ def admin_bkash_status(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
     return {
         "success": True,
-        "bkash_number": prod_setting("bkash_number", "")
+        "bkash_number": prod_setting("bkash_number", "01925211591") or "01925211591"
     }
 
 
@@ -1297,6 +1324,9 @@ async def admin_bkash_save(
 
     if not bkash_number:
         raise HTTPException(400, "bKash number is required")
+
+    if not re.fullmatch(r"01[3-9]\d{8}", bkash_number):
+        raise HTTPException(400, "Valid Bangladeshi bKash number দিন (11 digits).")
 
     prod_set_setting("bkash_number", bkash_number)
 
@@ -1327,6 +1357,220 @@ def admin_background_status(web_session: str | None = Cookie(default=None)):
     bg=get_default_background_db()
     return {"success":True,"background":{"name":bg["name"] if bg else "", "selected":bool(bg)}}
 
+
+@app.post("/api/customer/payments")
+def customer_submit_payment(
+    amount: int = Form(...),
+    transaction_id: str = Form(...),
+    sender_bkash: str = Form(""),
+    note: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    u = require_customer(web_session)
+
+    amount = int(amount)
+    transaction_id = transaction_id.strip()
+    sender_bkash = sender_bkash.strip()
+    note = note.strip()
+
+    if amount <= 0:
+        raise HTTPException(400, "Amount must be positive")
+    if not transaction_id:
+        raise HTTPException(400, "Transaction ID is required")
+    if len(transaction_id) > 100:
+        raise HTTPException(400, "Transaction ID is too long")
+    if len(sender_bkash) > 50:
+        raise HTTPException(400, "bKash number is too long")
+    if len(note) > 500:
+        raise HTTPException(400, "Note is too long")
+
+    # 1 taka = 1 balance credit. Credits are added ONLY after admin approval.
+    credits = amount
+
+    with prod_engine.begin() as c:
+        if c.execute(
+            text("SELECT id FROM web_payments WHERE transaction_id=:t"),
+            {"t": transaction_id}
+        ).fetchone():
+            raise HTTPException(409, "This transaction ID was already submitted")
+
+        pid = _next_id(c, "web_payments")
+        c.execute(
+            text("""
+                INSERT INTO web_payments
+                (id,user_id,amount,credits,transaction_id,sender_bkash,status,note,created_at,verified_at)
+                VALUES
+                (:id,:u,:a,:cr,:t,:sender,'pending',:note,:dt,NULL)
+            """),
+            {
+                "id": pid,
+                "u": u["id"],
+                "a": amount,
+                "cr": credits,
+                "t": transaction_id,
+                "sender": sender_bkash,
+                "note": note,
+                "dt": datetime.utcnow().isoformat(),
+            }
+        )
+
+    return {
+        "success": True,
+        "status": "pending",
+        "message": "Payment request submitted. Admin approval-এর পর Balance যোগ হবে."
+    }
+
+
+@app.get("/api/customer/payments")
+def customer_payments(web_session: str | None = Cookie(default=None)):
+    u = require_customer(web_session)
+
+    with prod_engine.begin() as c:
+        rows = c.execute(
+            text("""
+                SELECT
+                    id, amount, credits, transaction_id, sender_bkash,
+                    status, note, created_at, verified_at
+                FROM web_payments
+                WHERE user_id=:u
+                ORDER BY id DESC
+                LIMIT 100
+            """),
+            {"u": u["id"]}
+        ).mappings().all()
+
+    return {"success": True, "payments": [dict(r) for r in rows]}
+
+
+@app.get("/api/admin/payments")
+def admin_payments(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+
+    with prod_engine.begin() as c:
+        rows = c.execute(
+            text("""
+                SELECT
+                    p.id,
+                    p.amount,
+                    p.credits,
+                    p.transaction_id,
+                    p.sender_bkash,
+                    p.status,
+                    p.note,
+                    p.created_at,
+                    p.verified_at,
+                    u.email,
+                    COALESCE(u.full_name,'') AS full_name,
+                    COALESCE(u.mobile,'') AS mobile
+                FROM web_payments p
+                JOIN web_users u ON u.id=p.user_id
+                ORDER BY
+                    CASE WHEN p.status='pending' THEN 0 ELSE 1 END,
+                    p.id DESC
+                LIMIT 200
+            """)
+        ).mappings().all()
+
+    return {"success": True, "payments": [dict(r) for r in rows]}
+
+
+@app.post("/api/admin/payments/{payment_id}/approve")
+def admin_approve_payment(
+    payment_id: int,
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+
+    with prod_engine.begin() as c:
+        p = c.execute(
+            text("SELECT * FROM web_payments WHERE id=:id"),
+            {"id": payment_id}
+        ).mappings().first()
+
+        if not p:
+            raise HTTPException(404, "Payment request not found")
+
+        if p["status"] != "pending":
+            raise HTTPException(400, "This payment request is already processed")
+
+        wallet = c.execute(
+            text("SELECT credits FROM web_wallets WHERE user_id=:u"),
+            {"u": p["user_id"]}
+        ).fetchone()
+
+        current_balance = int(wallet[0]) if wallet else 0
+        new_balance = current_balance + int(p["credits"])
+
+        if wallet:
+            c.execute(
+                text("UPDATE web_wallets SET credits=:c WHERE user_id=:u"),
+                {"c": new_balance, "u": p["user_id"]}
+            )
+        else:
+            c.execute(
+                text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,:c)"),
+                {"u": p["user_id"], "c": new_balance}
+            )
+
+        c.execute(
+            text("""
+                UPDATE web_payments
+                SET status='approved',
+                    verified_at=:t,
+                    note=:note
+                WHERE id=:id
+            """),
+            {
+                "t": datetime.utcnow().isoformat(),
+                "note": "Approved by admin",
+                "id": payment_id
+            }
+        )
+
+    return {
+        "success": True,
+        "message": "Payment approved and balance added.",
+        "balance": new_balance
+    }
+
+
+@app.post("/api/admin/payments/{payment_id}/reject")
+def admin_reject_payment(
+    payment_id: int,
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+
+    with prod_engine.begin() as c:
+        p = c.execute(
+            text("SELECT status FROM web_payments WHERE id=:id"),
+            {"id": payment_id}
+        ).mappings().first()
+
+        if not p:
+            raise HTTPException(404, "Payment request not found")
+
+        if p["status"] != "pending":
+            raise HTTPException(400, "This payment request is already processed")
+
+        c.execute(
+            text("""
+                UPDATE web_payments
+                SET status='rejected',
+                    verified_at=:t,
+                    note=:note
+                WHERE id=:id
+            """),
+            {
+                "t": datetime.utcnow().isoformat(),
+                "note": "Rejected by admin",
+                "id": payment_id
+            }
+        )
+
+    return {"success": True, "message": "Payment request rejected."}
+
+
 @app.get("/api/customer/status")
 def customer_status(web_session: str | None = Cookie(default=None)):
     u = require_customer(web_session)
@@ -1346,7 +1590,7 @@ def customer_status(web_session: str | None = Cookie(default=None)):
         "success": True,
         "balance": prod_balance(u["id"]),
         "price": int(prod_setting("web_price", "1")),
-        "bkash_number": prod_setting("bkash_number", "")
+        "bkash_number": prod_setting("bkash_number", "01925211591") or "01925211591"
     }
     # ============================================================
 # CUSTOMER MANAGEMENT
@@ -1676,7 +1920,7 @@ async def customer_generate(
         media_type="application/pdf",
         filename=out.name,
         headers={
-            "Content-Disposition": f'inline; filename="{out.name}"',
+            "Content-Disposition": f'attachment; filename="{out.name}"',
             "X-PDF-Charged": str(price),
             "X-PDF-Balance": str(new_balance),
         },

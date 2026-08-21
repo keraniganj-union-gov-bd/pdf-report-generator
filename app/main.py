@@ -1208,16 +1208,68 @@ def web_register(
             {"u": uid}
         )
 
-    return {
+    token = _token(int(uid), "customer")
+    out = JSONResponse({
         "success": True,
-        "message": "Account created successfully"
-    }
+        "message": "Account created successfully",
+        "email": email,
+        "role": "customer"
+    })
+    # Newly registered customers are active immediately and are logged in
+    # automatically. No admin activation step is required.
+    out.set_cookie(
+        "web_session",
+        token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=86400 * 7
+    )
+    return out
 
 @app.get("/api/auth/me")
 def web_me(web_session: str | None = Cookie(default=None)):
     u = current_user(web_session)
     return {"success":True, "user":{"id":u["id"],"email":u["email"],"role":u["role"]}, "balance":prod_balance(u["id"])}
 
+
+@app.get("/api/admin/price")
+def admin_web_price_get(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    return {
+        "success": True,
+        "web_price": int(prod_setting("web_price", "1"))
+    }
+
+@app.get("/api/announcement")
+def public_announcement():
+    return {
+        "success": True,
+        "message": prod_setting("announcement", "")
+    }
+
+@app.get("/api/admin/announcement")
+def admin_announcement_get(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    return {
+        "success": True,
+        "message": prod_setting("announcement", "")
+    }
+
+@app.post("/api/admin/announcement")
+def admin_announcement_save(
+    message: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+    message = message.strip()
+    if len(message) > 500:
+        raise HTTPException(400, "Message must be 500 characters or fewer")
+    prod_set_setting("announcement", message)
+    return {
+        "success": True,
+        "message": message
+    }
 
 @app.post("/api/admin/price")
 def admin_web_price(web_price:int=Form(...), web_session: str | None=Cookie(default=None)):
@@ -1278,6 +1330,17 @@ def admin_background_status(web_session: str | None = Cookie(default=None)):
 @app.get("/api/customer/status")
 def customer_status(web_session: str | None = Cookie(default=None)):
     u = require_customer(web_session)
+
+    # Older accounts may have been created before wallet initialization.
+    with prod_engine.begin() as c:
+        c.execute(
+            text("""
+                INSERT INTO web_wallets(user_id, credits)
+                VALUES(:u, 0)
+                ON CONFLICT (user_id) DO NOTHING
+            """),
+            {"u": u["id"]}
+        )
 
     return {
         "success": True,
@@ -1546,25 +1609,6 @@ def get_my_profile(
         "success": True,
         "user": dict(row)
     }
-@app.post("/api/admin/bkash")
-async def admin_bkash(
-    bkash_number: str = Form(...),
-    web_session: str | None = Cookie(default=None)
-):
-    require_admin(web_session)
-
-    bkash_number = bkash_number.strip()
-
-    if not bkash_number:
-        raise HTTPException(400, "bKash number is required")
-
-    prod_set_setting("bkash_number", bkash_number)
-
-    return {
-        "success": True,
-        "bkash_number": bkash_number
-    }
-
 async def _parse_source_upload(file: UploadFile):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(400,"Please upload a PDF")

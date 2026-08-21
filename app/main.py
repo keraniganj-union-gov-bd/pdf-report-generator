@@ -1324,34 +1324,22 @@ async def admin_add_customer(
     role: str = Form("customer"),
     web_session: str | None = Cookie(default=None)
 ):
-    # Admin check
     require_admin(web_session)
 
-    # Clean input
     email = email.strip().lower()
     password = password.strip()
     full_name = full_name.strip()
     mobile = mobile.strip()
     role = role.strip().lower() or "customer"
 
-    # Validation
     if not email:
-        raise HTTPException(
-            status_code=400,
-            detail="Email is required"
-        )
+        raise HTTPException(400, "Email is required")
 
     if not password:
-        raise HTTPException(
-            status_code=400,
-            detail="Password is required"
-        )
+        raise HTTPException(400, "Password is required")
 
     if len(password) < 6:
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be at least 6 characters"
-        )
+        raise HTTPException(400, "Password must be at least 6 characters")
 
     if role not in ("customer", "admin"):
         role = "customer"
@@ -1373,15 +1361,25 @@ async def admin_add_customer(
 
             if existing:
                 raise HTTPException(
-                    status_code=400,
-                    detail="Email already exists"
+                    400,
+                    "Email already exists"
                 )
 
-            # Create customer
+            # Generate new ID because web_users.id
+            # does not have an automatic default
+            next_id = c.execute(
+                text("""
+                    SELECT COALESCE(MAX(id), 0) + 1 AS next_id
+                    FROM web_users
+                """)
+            ).scalar_one()
+
+            # Insert customer
             c.execute(
                 text("""
                     INSERT INTO web_users
                     (
+                        id,
                         email,
                         password_hash,
                         role,
@@ -1392,6 +1390,7 @@ async def admin_add_customer(
                     )
                     VALUES
                     (
+                        :id,
                         :email,
                         :password_hash,
                         :role,
@@ -1402,6 +1401,7 @@ async def admin_add_customer(
                     )
                 """),
                 {
+                    "id": next_id,
                     "email": email,
                     "password_hash": _hash_password(password),
                     "role": role,
@@ -1412,37 +1412,46 @@ async def admin_add_customer(
                 }
             )
 
-            # Get newly created customer ID
-            new_user = c.execute(
-                text("""
-                    SELECT id
-                    FROM web_users
-                    WHERE email = :email
-                """),
-                {
-                    "email": email
-                }
-            ).mappings().first()
-
-            if not new_user:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Customer was not created"
+            # Create wallet for new customer
+            try:
+                c.execute(
+                    text("""
+                        INSERT INTO web_wallets
+                        (
+                            user_id,
+                            credits
+                        )
+                        VALUES
+                        (
+                            :user_id,
+                            0
+                        )
+                        ON CONFLICT (user_id) DO NOTHING
+                    """),
+                    {
+                        "user_id": next_id
+                    }
                 )
-
-            uid = new_user["id"]
+            except Exception as wallet_error:
+                print(
+                    "WALLET CREATE ERROR:",
+                    repr(wallet_error)
+                )
 
         return {
             "success": True,
             "message": "Customer created successfully",
-            "id": uid
+            "id": next_id
         }
 
     except HTTPException:
         raise
 
     except Exception as e:
-        print("ADMIN ADD CUSTOMER ERROR:", repr(e))
+        print(
+            "ADMIN ADD CUSTOMER ERROR:",
+            repr(e)
+        )
 
         raise HTTPException(
             status_code=500,

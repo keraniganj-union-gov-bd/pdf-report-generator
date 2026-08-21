@@ -13,6 +13,7 @@ import subprocess, time, shutil, platform, secrets, hashlib, hmac
 from typing import Optional
 
 from fastapi import Cookie, Depends
+from weasyprint import HTML as WeasyHTML
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
 BASE = Path(__file__).resolve().parent.parent
@@ -991,15 +992,25 @@ def _find_browser():
                 return p
     return None
 
+_BG_DATA_CACHE = {"key": None, "data": ""}
+
 def selected_background_data_url():
     name = setting_str("background_image", "").strip()
     if not name:
         return ""
-    # Prevent path traversal and only allow files inside BACKGROUNDS.
     safe = Path(name).name
     p = BACKGROUNDS / safe
     if not p.exists() or not p.is_file():
         return ""
+
+    try:
+        key = (str(p), p.stat().st_mtime_ns, p.stat().st_size)
+    except OSError:
+        return ""
+
+    if _BG_DATA_CACHE["key"] == key:
+        return _BG_DATA_CACHE["data"]
+
     ext = p.suffix.lower()
     mime = {
         ".jpg": "image/jpeg",
@@ -1009,7 +1020,14 @@ def selected_background_data_url():
     }.get(ext)
     if not mime:
         return ""
-    return f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode()}"
+
+    try:
+        data = f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode()}"
+        _BG_DATA_CACHE["key"] = key
+        _BG_DATA_CACHE["data"] = data
+        return data
+    except OSError:
+        return ""
 
 def make_pdf(d):
     job = uuid.uuid4().hex[:12]
@@ -1135,10 +1153,28 @@ td {{ border:0.10pt solid #d5d5d5 !important; padding:3px 5px; vertical-align:to
 </body>
 </html>"""
 
-    html_path.write_text(html_doc, encoding="utf-8")
+    # Fast path: WeasyPrint renders the HTML/CSS in-process and avoids
+    # launching Chromium for every request. This is the main performance
+    # improvement for PDF generation.
+    try:
+        WeasyHTML(
+            string=html_doc,
+            base_url=str(BASE)
+        ).write_pdf(str(out))
+
+        if out.exists() and out.stat().st_size >= 1000:
+            return out
+        raise RuntimeError("WeasyPrint produced an empty PDF")
+    except Exception as fast_error:
+        # Compatibility fallback: keep the old Chromium renderer available
+        # if a particular document/resource is not supported by WeasyPrint.
+        print("FAST PDF RENDER ERROR:", repr(fast_error))
+
     browser = _find_browser()
     if not browser:
-        raise HTTPException(500, "Chrome or Microsoft Edge was not found.")
+        raise HTTPException(500, "PDF renderer is unavailable.")
+
+    html_path.write_text(html_doc, encoding="utf-8")
 
     cmd = [
         browser, "--headless=new", "--disable-gpu", "--no-sandbox",
@@ -1146,20 +1182,28 @@ td {{ border:0.10pt solid #d5d5d5 !important; padding:3px 5px; vertical-align:to
         "--no-first-run", "--no-default-browser-check",
         "--disable-background-networking", "--disable-sync",
         "--disable-translate", "--no-pdf-header-footer",
-        "--run-all-compositor-stages-before-draw", "--virtual-time-budget=250",
+        "--run-all-compositor-stages-before-draw", "--virtual-time-budget=50",
         f"--print-to-pdf={str(out)}", html_path.resolve().as_uri()
     ]
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
         if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
             cmd[1] = "--headless"
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+
         if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
-            raise HTTPException(500, (result.stderr or result.stdout or "PDF generation failed")[-1200:])
+            raise HTTPException(
+                500,
+                (result.stderr or result.stdout or "PDF generation failed")[-1200:]
+            )
+
         return out
     finally:
-        try: html_path.unlink(missing_ok=True)
-        except Exception: pass
+        try:
+            html_path.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 # -------------------------- Customer/Admin web API --------------------------

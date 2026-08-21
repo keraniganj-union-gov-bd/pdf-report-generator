@@ -1,4 +1,3 @@
-```
 <!doctype html>
 <html lang="bn">
 <head>
@@ -130,6 +129,69 @@
 
 <section id="history" class="card page hidden"><h2>Recent 5 Generations</h2><p class="muted">শুধু সর্বশেষ ৫টি generation-এর তথ্য রাখা হয়। PDF history-তে save করা হয় না।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>NID</th><th>File</th><th>Charge</th><th>Date</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
 
+<section id="adminDashboard" class="card page hidden">
+  <h2>Admin Dashboard</h2>
+  <p>এখান থেকেই সব customer দেখা, edit এবং delete করতে পারবেন।</p>
+
+  <div class="grid3">
+    <div class="stat"><small>Total Customers</small><b id="customerCount">0</b></div>
+    <div class="stat"><small>PDF Price</small><b id="adminPrice">0</b></div>
+    <div class="stat"><small>Default Background</small><b id="bgName">None</b></div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:18px">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>ID</th><th>Name</th><th>Email</th><th>Mobile</th>
+          <th>Balance</th><th>Status</th><th>Created</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="adminCustomerBody">
+        <tr><td colspan="8">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="adminCustomerEditBox" class="paybox" style="display:none;margin-top:18px">
+    <h3>Edit Customer</h3>
+    <input type="hidden" id="editCustomerId">
+
+    <div class="form-grid">
+      <div class="field">
+        <label>Full Name</label>
+        <input id="editCustomerName" type="text">
+      </div>
+      <div class="field">
+        <label>Mobile</label>
+        <input id="editCustomerMobile" type="text">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="editCustomerEmail" type="email">
+      </div>
+      <div class="field">
+        <label>New Password (optional)</label>
+        <input id="editCustomerPassword" type="password" placeholder="Blank রাখলে password change হবে না">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="editCustomerActive">
+          <option value="1">Active</option>
+          <option value="0">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <button class="btn" type="button" onclick="updateCustomer()">Save Changes</button>
+      <button class="btn secondary" type="button" onclick="closeCustomerEditor()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="adminCustomerStatus" class="status"></div>
+</section>
+
 <section id="adminPayments" class="card page hidden">
   <h2>bKash Payments</h2>
 
@@ -178,152 +240,6 @@
 
 <section id="adminPayments" class="card page hidden"><h2>bKash Payments</h2><p>Customer payment verify করুন। Approve করলে credit automatically যোগ হবে।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>Customer</th><th>Amount</th><th>Credits</th><th>Transaction</th><th>Status</th><th>Action</th></tr></thead><tbody id="paymentBody"></tbody></table></div></section>
 
-<section id="customers" class="card page hidden">
-
-  <div class="row" style="align-items:center;justify-content:space-between">
-    <div>
-      <h2>Customers</h2>
-      <p class="muted">
-        Add, edit, activate/deactivate and remove customer accounts.
-      </p>
-    </div>
-
-    <button class="btn" onclick="openCustomerForm()">
-      + Add Customer
-    </button>
-  </div>
-
-  <div
-    id="customerStatus"
-    class="status"
-    style="margin:12px 0"
-  ></div>
-
-  <div class="table-wrap">
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Email</th>
-          <th>Mobile</th>
-          <th>Role</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-
-      <tbody id="customersTableBody">
-        <tr>
-          <td colspan="8">
-            Loading...
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Add/Edit Customer -->
-  <div
-    id="customerFormBox"
-    class="paybox"
-    style="display:none;margin-top:20px"
-  >
-
-    <h3 id="customerFormTitle">
-      Add Customer
-    </h3>
-
-    <input
-      type="hidden"
-      id="customerEditId"
-    >
-
-    <div class="form-grid">
-
-      <div class="field">
-        <label>Full Name</label>
-        <input
-          id="customerFullName"
-          type="text"
-          placeholder="Customer name"
-        >
-      </div>
-
-      <div class="field">
-        <label>Mobile</label>
-        <input
-          id="customerMobile"
-          type="text"
-          placeholder="01XXXXXXXXX"
-        >
-      </div>
-
-      <div class="field">
-        <label>Email</label>
-        <input
-          id="customerEmail"
-          type="email"
-          placeholder="customer@example.com"
-          required
-        >
-      </div>
-
-      <div class="field">
-        <label>New Password</label>
-        <input
-          id="customerPassword"
-          type="password"
-          placeholder="New password"
-        >
-        <small class="muted">
-          Add customer-এর সময় required. Edit-এর সময় blank রাখলে password change হবে না।
-        </small>
-      </div>
-
-      <div class="field">
-        <label>Role</label>
-        <select id="customerRole">
-          <option value="customer">Customer</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Status</label>
-        <select id="customerActive">
-          <option value="1">Active</option>
-          <option value="0">Inactive</option>
-        </select>
-      </div>
-
-    </div>
-
-    <div class="row" style="margin-top:14px">
-
-      <button
-    type="button"
-    class="btn"
-    onclick="saveCustomer()"
-    >
-    Save Customer
-    </button>
-
-      <button
-        type="button"
-        class="btn"
-        onclick="closeCustomerForm()"
-      >
-        Cancel
-      </button>
-
-    </div>
-
-  </div>
-
-</section>
-
 <section id="background" class="card page hidden"><h2>Default Background</h2><p>Admin একবার background সেট করবে।</p><div class="row"><input id="bg" type="file" accept=".jpg,.jpeg,.png,.webp"><button class="btn" onclick="setBackground()">Upload & Set Default</button></div><div id="bgStatus" class="status"></div></section>
 
 <section id="pricing" class="card page hidden"><h2>Pricing</h2><p>Customer প্রতি PDF generation-এর charge।</p><div class="row"><input id="price" type="number" min="0"><button class="btn" onclick="savePrice()">Save Price</button></div></section>
@@ -336,8 +252,8 @@ const fields=[["national_id","জাতীয় পরিচয়পত্র নম
 const $=id=>document.getElementById(id);
 function showAuth(which){$("login").classList.toggle("hidden",which!=="login");$("register").classList.toggle("hidden",which!=="register");}
 function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));$(id).classList.remove("hidden");}
-function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="customers")loadCustomers();if(id==="adminPayments")loadAdminPayments();if(id==="background")loadBg();if(id==="pricing")loadAdmin();if(id==="buyCredits")loadStatus();if(id==="paymentHistory")loadMyPayments()};return b}
-function buildNav(){let n=$("nav");n.innerHTML="";if(me.role==="admin")n.append(navItem("Dashboard","adminDashboard"),navItem("bKash Payments","adminPayments"),navItem("Customers","customers"),navItem("Default Background","background"),navItem("Pricing","pricing"));else n.append(navItem("Dashboard","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"));n.append(navItem("Generate PDF","customerHome"),navItem("Download History","history"))}
+function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="adminPayments")loadAdminPayments();if(id==="background")loadBg();if(id==="pricing")loadAdmin();if(id==="buyCredits")loadStatus();if(id==="paymentHistory")loadMyPayments()};return b}
+function buildNav(){let n=$("nav");n.innerHTML="";if(me.role==="admin")n.append(navItem("Dashboard","adminDashboard"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"));else n.append(navItem("Dashboard","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"));n.append(navItem("Generate PDF","customerHome"),navItem("Download History","history"))}
 async function login(e){e.preventDefault();$("loginError").classList.add("hidden");let fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);let r=await fetch("/api/auth/login",{method:"POST",body:fd});let x=await r.json();if(!r.ok){$("loginError").textContent=x.detail||"Login failed";$("loginError").classList.remove("hidden");return}await boot()}
 async function register(e){e.preventDefault();$("regError").classList.add("hidden");let fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);let r=await fetch("/api/auth/register",{method:"POST",body:fd});let x=await r.json();if(!r.ok){$("regError").textContent=x.detail||"Registration failed";$("regError").classList.remove("hidden");return}alert("Account created successfully. এখন Login করুন।");$("email").value=$("regEmail").value;showAuth("login")}
 async function boot(){let r=await fetch("/api/auth/me");if(!r.ok){showAuth("login");$("app").classList.add("hidden");return}let x=await r.json();me=x.user;$("balance").textContent=x.balance;showAuth("login");$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();show("adminDashboard"===me.role?"adminDashboard":"customerHome");if(me.role==="admin")loadAdmin();else loadStatus()}
@@ -417,299 +333,129 @@ async function loadStatus(){let r=await fetch("/api/customer/status");if(!r.ok)r
 async function submitPayment(){let fd=new FormData();fd.append("amount",$("payAmount").value);fd.append("transaction_id",$("trxId").value);let r=await fetch("/api/customer/payments",{method:"POST",body:fd});let x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("trxId").value="";loadMyPayments()}}
 async function loadMyPayments(){let r=await fetch("/api/customer/payments");if(!r.ok)return;let x=await r.json();$("myPayments").innerHTML=x.payments.map(p=>`<tr><td>${p.created_at}</td><td>৳${p.amount}</td><td>${p.credits}</td><td>${p.transaction_id}</td><td>${p.status}</td></tr>`).join("")}
 async function loadHistory(){let r=await fetch("/api/customer/history");if(!r.ok)return;let x=await r.json();$("historyBody").innerHTML=x.history.map(h=>`<tr><td>${h.id}</td><td>${h.nid||""}</td><td>${h.filename||""}</td><td>${h.charged}</td><td>${h.created_at}</td></tr>`).join("")}
-async function loadAdmin(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerCount").textContent=x.customers.length;let s=await (await fetch("/api/customer/status")).json();$("adminPrice").textContent=s.price;$("price").value=s.price;loadAdminPayments()}
-let allAdminPayments = [];
-let paymentFilter = "all";
+async function loadAdmin(){
+  try{
+    const r=await fetch("/api/admin/customers");
+    if(!r.ok) throw new Error("Customer list load failed");
+    const x=await r.json();
 
-async function loadAdminPayments(){
-    let r = await fetch("/api/admin/payments");
+    $("customerCount").textContent=(x.customers||[]).length;
+    renderAdminCustomers(x.customers||[]);
 
+    const s=await (await fetch("/api/customer/status")).json();
+    $("adminPrice").textContent=s.price;
+    $("price").value=s.price;
+
+    const bg=await (await fetch("/api/admin/background")).json();
+    $("bgName").textContent=(bg.background&&bg.background.name)||"None";
+
+    loadAdminPayments();
+  }catch(e){
+    console.error(e);
+    $("adminCustomerBody").innerHTML='<tr><td colspan="8">Customer list load করা যায়নি।</td></tr>';
+  }
+}
+
+function esc(v){
+  return String(v ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/\"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+
+function renderAdminCustomers(customers){
+  if(!customers.length){
+    $("adminCustomerBody").innerHTML='<tr><td colspan="8" style="text-align:center">কোনো customer পাওয়া যায়নি।</td></tr>';
+    return;
+  }
+
+  $("adminCustomerBody").innerHTML=customers.map(c=>`
+    <tr>
+      <td>${esc(c.id)}</td>
+      <td>${esc(c.full_name||"Customer")}</td>
+      <td>${esc(c.email)}</td>
+      <td>${esc(c.mobile||"")}</td>
+      <td>${esc(c.credits||0)}</td>
+      <td>${c.active ? "Active" : "Inactive"}</td>
+      <td>${esc(c.created_at||"")}</td>
+      <td>
+        <button class="btn secondary" type="button" onclick='openCustomerEditor(${JSON.stringify(c)})'>Edit</button>
+        <button class="btn danger" type="button" onclick="deleteCustomer(${Number(c.id)})">Delete</button>
+      </td>
+    </tr>
+  `).join("");
+}
+
+function openCustomerEditor(c){
+  $("editCustomerId").value=c.id||"";
+  $("editCustomerName").value=c.full_name||"";
+  $("editCustomerMobile").value=c.mobile||"";
+  $("editCustomerEmail").value=c.email||"";
+  $("editCustomerPassword").value="";
+  $("editCustomerActive").value=c.active ? "1" : "0";
+  $("adminCustomerEditBox").style.display="block";
+  $("adminCustomerEditBox").scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function closeCustomerEditor(){
+  $("adminCustomerEditBox").style.display="none";
+  $("editCustomerPassword").value="";
+}
+
+async function updateCustomer(){
+  const id=$("editCustomerId").value;
+  if(!id) return;
+
+  const fd=new FormData();
+  fd.append("user_id",id);
+  fd.append("email",$("editCustomerEmail").value.trim());
+  fd.append("full_name",$("editCustomerName").value.trim());
+  fd.append("mobile",$("editCustomerMobile").value.trim());
+  fd.append("role","customer");
+  fd.append("active",$("editCustomerActive").value);
+  fd.append("new_password",$("editCustomerPassword").value);
+
+  try{
+    const r=await fetch("/api/admin/customer/update",{method:"POST",body:fd});
+    const x=await r.json();
     if(!r.ok){
-        $("paymentBody").innerHTML =
-            '<tr><td colspan="6">Payment load করা যায়নি।</td></tr>';
-        return;
+      $("adminCustomerStatus").textContent=x.detail||"Customer update failed";
+      return;
     }
-
-    let x = await r.json();
-
-    allAdminPayments = x.payments || [];
-
-    updatePaymentCount();
-    renderAdminPayments();
+    $("adminCustomerStatus").textContent=x.message||"Customer updated successfully";
+    closeCustomerEditor();
+    await loadAdmin();
+  }catch(e){
+    console.error(e);
+    $("adminCustomerStatus").textContent="Customer update error: "+e.message;
+  }
 }
 
-function updatePaymentCount(){
+async function deleteCustomer(id){
+  if(!confirm("এই customer account delete করতে চান?")) return;
 
-    let pending = allAdminPayments.filter(
-        p => p.status === "pending"
-    ).length;
+  const fd=new FormData();
+  fd.append("user_id",id);
 
-    $("pendingCount").textContent = pending;
-
-    if($("approvedCount")){
-        $("approvedCount").textContent =
-            allAdminPayments.filter(
-                p => p.status === "approved"
-            ).length;
+  try{
+    const r=await fetch("/api/admin/customer/delete",{method:"POST",body:fd});
+    const x=await r.json();
+    if(!r.ok){
+      alert(x.detail||"Customer delete failed");
+      return;
     }
-
-    if($("rejectedCount")){
-        $("rejectedCount").textContent =
-            allAdminPayments.filter(
-                p => p.status === "rejected"
-            ).length;
-    }
+    $("adminCustomerStatus").textContent=x.message||"Customer deleted successfully";
+    await loadAdmin();
+  }catch(e){
+    console.error(e);
+    alert("Customer delete error: "+e.message);
+  }
 }
 
-function filterPayments(status){
-    paymentFilter = status;
-    renderAdminPayments();
-}
-
-function renderAdminPayments(){
-
-    let payments = allAdminPayments;
-
-    if(paymentFilter !== "all"){
-        payments = payments.filter(
-            p => p.status === paymentFilter
-        );
-    }
-
-    if(!payments.length){
-        $("paymentBody").innerHTML =
-            '<tr><td colspan="6" style="text-align:center;">কোনো payment পাওয়া যায়নি।</td></tr>';
-        return;
-    }
-
-    $("paymentBody").innerHTML = payments.map(p => {
-
-        let status = p.status || "pending";
-
-        let statusHtml =
-            status === "approved"
-            ? '<span class="status-badge approved">Approved</span>'
-            : status === "rejected"
-            ? '<span class="status-badge rejected">Rejected</span>'
-            : '<span class="status-badge pending">Pending</span>';
-
-        let action = "-";
-
-        if(status === "pending"){
-            action = `
-                <button
-                    class="btn success"
-                    onclick="approvePayment(${p.id})">
-                    ✓ Approve
-                </button>
-
-                <button
-                    class="btn danger"
-                    onclick="rejectPayment(${p.id})">
-                    ✕ Reject
-                </button>
-            `;
-        }
-
-        return `
-            <tr>
-                <td>
-                    <b>${p.full_name || "Customer"}</b>
-                    <br>
-                    <small>${p.email || ""}</small>
-                </td>
-
-                <td>৳${p.amount || 0}</td>
-
-                <td>${p.credits || 0}</td>
-
-                <td>
-                    <b>${p.transaction_id || ""}</b>
-                </td>
-
-                <td>${statusHtml}</td>
-
-                <td>${action}</td>
-            </tr>
-        `;
-
-    }).join("");
-}
-async function approvePayment(id){let r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
-async function rejectPayment(id){let r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST"});let x=await r.json();if(!r.ok)return alert(x.detail||"Failed");loadAdminPayments()}
-async function createCustomer() {
-    return saveCustomer();
-}
-async function loadCustomers(){let r=await fetch("/api/admin/customers");if(!r.ok)return;let x=await r.json();$("customerBody").innerHTML=x.customers.map(c=>`<tr><td>${c.email}</td><td>${c.credits}</td><td>${c.active?"Active":"Disabled"}</td><td><button class="btn secondary" onclick="credit(${c.id},10)">+10</button> <button class="btn danger" onclick="credit(${c.id},-10)">-10</button></td></tr>`).join("")}
-async function credit(id,amount){let fd=new FormData();fd.append("amount",amount);let r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){let x=await r.json();alert(x.detail||"Failed")}loadCustomers()}
 async function setBackground(){let f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");let fd=new FormData();fd.append("file",f);let r=await fetch("/api/admin/background",{method:"POST",body:fd});let x=await r.json();$("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed")}
 async function loadBg(){let r=await fetch("/api/admin/background");if(!r.ok)return;let x=await r.json();$("bgStatus").textContent=x.background.name?"Current Default: "+x.background.name:"No default background set"}
 async function savePrice(){let fd=new FormData();fd.append("web_price",$("price").value);let r=await fetch("/api/admin/price",{method:"POST",body:fd});let x=await r.json();if(!r.ok)alert(x.detail||"Failed");else alert("Price saved")}
 $("loginForm").addEventListener("submit",login);$("registerForm").addEventListener("submit",register);boot();
 </script></body></html>
-```
-<script>
-function openCustomerForm() {
-    const box = document.getElementById("customerFormBox");
-
-    if (!box) {
-        alert("Customer form box not found");
-        return;
-    }
-
-    box.style.display = "block";
-
-    const title = document.getElementById("customerFormTitle");
-    if (title) {
-        title.textContent = "Add Customer";
-    }
-
-    const editId = document.getElementById("customerEditId");
-    if (editId) {
-        editId.value = "";
-    }
-
-    const fullName = document.getElementById("customerFullName");
-    if (fullName) {
-        fullName.value = "";
-    }
-
-    const mobile = document.getElementById("customerMobile");
-    if (mobile) {
-        mobile.value = "";
-    }
-
-    const email = document.getElementById("customerEmail");
-    if (email) {
-        email.value = "";
-    }
-
-    const password = document.getElementById("customerPassword");
-    if (password) {
-        password.value = "";
-    }
-
-    const role = document.getElementById("customerRole");
-    if (role) {
-        role.value = "customer";
-    }
-
-    const active = document.getElementById("customerActive");
-    if (active) {
-        active.value = "1";
-    }
-
-    box.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-    });
-}
-</script>
-
-<script>
-window.saveCustomer = async function () {
-
-    console.log("SAVE CUSTOMER BUTTON CLICKED");
-
-    try {
-        const emailEl = document.getElementById("customerEmail");
-        const passwordEl = document.getElementById("customerPassword");
-        const fullNameEl = document.getElementById("customerFullName");
-        const mobileEl = document.getElementById("customerMobile");
-        const roleEl = document.getElementById("customerRole");
-
-        if (!emailEl || !passwordEl || !fullNameEl || !mobileEl || !roleEl) {
-            alert("Customer form field পাওয়া যাচ্ছে না।");
-            console.error({
-                emailEl,
-                passwordEl,
-                fullNameEl,
-                mobileEl,
-                roleEl
-            });
-            return;
-        }
-
-        const email = emailEl.value.trim();
-        const password = passwordEl.value;
-        const fullName = fullNameEl.value.trim();
-        const mobile = mobileEl.value.trim();
-        const role = roleEl.value || "customer";
-
-        if (!fullName) {
-            alert("Full Name দিন");
-            return;
-        }
-
-        if (!mobile) {
-            alert("Mobile দিন");
-            return;
-        }
-
-        if (!email) {
-            alert("Email দিন");
-            return;
-        }
-
-        if (!password) {
-            alert("Password দিন");
-            return;
-        }
-
-        const fd = new FormData();
-
-        fd.append("email", email);
-        fd.append("password", password);
-        fd.append("full_name", fullName);
-        fd.append("mobile", mobile);
-        fd.append("role", role);
-
-        console.log("Sending customer data...");
-
-        const response = await fetch("/api/admin/customer", {
-            method: "POST",
-            body: fd,
-            credentials: "same-origin"
-        });
-
-        const responseText = await response.text();
-
-        console.log("STATUS:", response.status);
-        console.log("RESPONSE:", responseText);
-
-        let data = {};
-
-        try {
-            data = JSON.parse(responseText);
-        } catch (e) {
-            console.log("Response is not JSON");
-        }
-
-        if (!response.ok) {
-            alert(
-                "Customer Save Failed\n\n" +
-                "Status: " + response.status + "\n" +
-                (data.detail || data.message || responseText || "Unknown error")
-            );
-            return;
-        }
-
-alert(data.message || "Customer created successfully");
-
-emailEl.value = "";
-passwordEl.value = "";
-fullNameEl.value = "";
-mobileEl.value = "";
-
-if (roleEl) {
-    roleEl.value = "customer";
-}
-
-/*
- * Customer successfully saved.
- * Reload the page instead of calling loadCustomers/loadAdmin,
- * because one of those functions is trying to access a missing
- * HTML element and causing:
- * Cannot set properties of null (setting 'innerHTML')
- */
-window.location.reload();

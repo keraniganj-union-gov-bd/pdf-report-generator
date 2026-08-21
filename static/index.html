@@ -694,33 +694,22 @@ window.saveCustomer = async function () {
             return;
         }
 
-        alert(data.message || "Customer created successfully");
+alert(data.message || "Customer created successfully");
 
-        emailEl.value = "";
-        passwordEl.value = "";
-        fullNameEl.value = "";
-        mobileEl.value = "";
+emailEl.value = "";
+passwordEl.value = "";
+fullNameEl.value = "";
+mobileEl.value = "";
 
-        if (roleEl) {
-            roleEl.value = "customer";
-        }
+if (roleEl) {
+    roleEl.value = "customer";
+}
 
-        if (typeof loadCustomers === "function") {
-            await loadCustomers();
-        }
-
-        if (typeof loadAdmin === "function") {
-            await loadAdmin();
-        }
-
-    } catch (error) {
-
-        console.error("SAVE CUSTOMER ERROR:", error);
-
-        alert(
-            "Customer Save Error\n\n" +
-            error.message
-        );
-    }
-};
-</script>
+/*
+ * Customer successfully saved.
+ * Reload the page instead of calling loadCustomers/loadAdmin,
+ * because one of those functions is trying to access a missing
+ * HTML element and causing:
+ * Cannot set properties of null (setting 'innerHTML')
+ */
+window.location.reload();

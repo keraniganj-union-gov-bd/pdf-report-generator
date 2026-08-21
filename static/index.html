@@ -9,9 +9,18 @@
 .login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#eaf6ff,#fff)}.login-card{width:min(450px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 12px 40px #1e5a8c1f}.logo{width:52px;height:52px;border-radius:15px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:26px;margin-bottom:14px}h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}.field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#49637a}.field input,.field select{width:100%;padding:11px 12px;border:1px solid #d3e1ec;border-radius:10px;outline:none}.btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.success{background:var(--green)}.btn.full{width:100%;margin-top:5px}.error{margin-top:10px;background:#fff1f1;border:1px solid #ffd8d8;color:#9f3434;border-radius:10px;padding:10px;font-size:12px}.linkbtn{background:none;border:0;color:var(--blue);font-weight:700;margin-top:12px}
 .app{min-height:100vh;display:flex}.side{width:240px;position:fixed;left:0;top:0;bottom:0;background:#fff;border-right:1px solid var(--line);z-index:20}.brand{padding:22px;background:linear-gradient(145deg,#1675e8,#55acf4);color:#fff}.brand b{font-size:18px}.brand small{display:block;margin-top:4px;opacity:.9}.nav{padding:14px}.nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;color:#526a80;font-weight:700;margin:3px 0}.nav button:hover,.nav button.active{background:var(--sky);color:var(--blue)}.main{margin-left:240px;flex:1}.top{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 28px;position:sticky;top:0;z-index:10}.badge{background:var(--sky);color:#175f9b;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:750}.content{max-width:1150px;margin:auto;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;margin-bottom:17px;box-shadow:0 8px 25px #1e5a8c12}.card h2{font-size:18px;margin:0 0 4px}.card p{margin:0 0 16px;color:var(--muted);font-size:12px}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.row button{flex:0 0 auto}.status{margin-top:12px;padding:11px;border-radius:10px;background:#f2f9ff;border:1px solid #d8ebfa;font-size:12px;white-space:pre-wrap}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.wide{grid-column:1/-1}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf2f6}.table-wrap{overflow:auto}.tbl{width:100%;border-collapse:collapse;font-size:12px}.tbl th,.tbl td{padding:9px;border-bottom:1px solid #e6eef4;text-align:left;white-space:nowrap}.tbl th{background:#f5faff}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#f8fcff;border:1px solid #dcecf7;border-radius:12px;padding:13px}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{font-size:19px}.paybox{border:1px dashed #9dcbea;border-radius:14px;padding:16px;background:#f8fcff;margin:14px 0}.paybox strong{font-size:20px;color:#1677e8}.package{border:1px solid #dce8f2;border-radius:10px;padding:12px;margin:7px 0;cursor:pointer}.package:hover{border-color:#67adf0;background:#f5faff}
 @media(max-width:800px){.side{width:210px}.main{margin-left:210px}.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}}@media(max-width:650px){.side{display:none}.main{margin-left:0}.row{flex-direction:column;align-items:stretch}.top{padding:0 14px}.content{padding:12px}}
-.loading-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px}.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}</style>
+.loading-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px}.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.announcement{width:100%;height:42px;background:#fff4c2;border-bottom:1px solid #eadb8d;overflow:hidden;display:flex;align-items:center;position:relative;z-index:50}
+.announcement-track{display:inline-block;white-space:nowrap;padding-left:100%;font-weight:800;color:#694f00;animation:announcementMove 18s linear infinite}
+@keyframes announcementMove{from{transform:translateX(-100%)}to{transform:translateX(100vw)}}
+.announcement-track:hover{animation-play-state:paused}
+.clickable-stat{cursor:pointer;transition:.15s}
+.clickable-stat:hover{transform:translateY(-2px);box-shadow:0 5px 18px #1e5a8c18}
+@media(max-width:650px){.announcement-track{animation-duration:14s}}
+</style>
 </head>
 <body>
+<div id="announcementBar" class="announcement hidden"><div id="announcementTrack" class="announcement-track"></div></div>
 
 <div id="login" class="login">
 <div class="login-card">
@@ -44,6 +53,7 @@
 <div class="content">
 
 <section id="customerHome" class="card page"><h2>PDF তৈরি করুন</h2><p>Source PDF upload করুন। Default Background system ব্যবহার করবে।</p>
+<div class="paybox"><b>Admin bKash Number:</b> <strong id="customerBkashNumber">Loading...</strong></div>
 <div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div><div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div></section>
 
 <section id="customerData" class="card page hidden"><h2>তথ্য যাচাই</h2><p>PDF তৈরি করার আগে প্রয়োজন হলে তথ্য edit করুন।</p><div id="dataForm" class="form-grid"></div><div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div></section>
@@ -67,7 +77,7 @@
 
       <p>
         বর্তমান Balance:
-        <strong>৳<span id="balance">0</span></strong>
+        <strong>৳<span id="buyBalance">0</span></strong>
       </p>
     </div>
 
@@ -134,12 +144,13 @@
   <p>এখান থেকেই সব customer দেখা, edit এবং delete করতে পারবেন।</p>
 
   <div class="grid3">
-    <div class="stat"><small>Total Customers</small><b id="customerCount">0</b></div>
+    <div class="stat clickable-stat" role="button" tabindex="0" onclick="toggleCustomerList()" onkeydown="if(event.key==='Enter'||event.key===' ')toggleCustomerList()"><small>Total Customers</small><b id="customerCount">0</b><div class="muted" style="margin-top:5px">Click to view all customers</div></div>
     <div class="stat"><small>PDF Price</small><b id="adminPrice">0</b></div>
     <div class="stat"><small>Default Background</small><b id="bgName">None</b></div>
   </div>
 
-  <div class="table-wrap" style="margin-top:18px">
+  <div id="adminCustomerListBox" class="table-wrap hidden" style="margin-top:18px">
+    <div style="margin-bottom:10px;font-weight:700">All Customers</div>
     <table class="tbl">
       <thead>
         <tr>
@@ -193,52 +204,28 @@
 </section>
 
 <section id="adminPayments" class="card page hidden">
-  <h2>bKash Payments</h2>
-
+  <h2>bKash Settings</h2>
+  <p>এখান থেকে bKash নম্বর add/change করতে পারবেন। Customer account-এ এই নম্বরটি দেখানো হবে।</p>
   <div class="paybox">
-
-    <div class="field">
-      <label>Minimum Recharge (৳)</label>
-      <input
-        id="adminWebPrice"
-        type="number"
-        min="1"
-        placeholder="100"
-      >
-    </div>
-
     <div class="field">
       <label>bKash Personal Number (Send Money)</label>
-      <input
-        id="adminBkashNumber"
-        type="text"
-        placeholder="01XXXXXXXXX"
-      >
+      <input id="adminBkashNumber" type="text" placeholder="01XXXXXXXXX">
     </div>
-
-    <div class="field">
-      <label>Payment Instruction</label>
-      <textarea
-        id="adminPaymentInstruction"
-        rows="4"
-        placeholder="bKash Personal নম্বরে Send Money করে Transaction ID জমা দিন।"
-      ></textarea>
-    </div>
-
-    <button
-      class="btn"
-      type="button"
-      onclick="savePaymentSettings()"
-    >
-      Settings Save করুন
-    </button>
-
-    <div id="paymentSettingsStatus" class="status"></div>
-
+    <button class="btn" type="button" onclick="saveBkashNumber()">bKash Number Save করুন</button>
+    <div id="bkashSettingsStatus" class="status"></div>
   </div>
 </section>
 
-<section id="adminPayments" class="card page hidden"><h2>bKash Payments</h2><p>Customer payment verify করুন। Approve করলে credit automatically যোগ হবে।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>Customer</th><th>Amount</th><th>Credits</th><th>Transaction</th><th>Status</th><th>Action</th></tr></thead><tbody id="paymentBody"></tbody></table></div></section>
+<section id="adminAnnouncement" class="card page hidden">
+  <h2>Admin Message / Announcement</h2>
+  <p>Bangla বা English message লিখুন। Save করার পর সব logged-in user-এর screen-এ বাম থেকে ডানে scrolling message হিসেবে দেখাবে।</p>
+  <div class="field">
+    <label>Message</label>
+    <textarea id="adminAnnouncementText" rows="4" maxlength="500" placeholder="যেমন: আজ রাত ১০টায় maintenance হবে। / System maintenance tonight at 10 PM."></textarea>
+  </div>
+  <button class="btn" type="button" onclick="saveAnnouncement()">Message Save করুন</button>
+  <div id="announcementStatus" class="status"></div>
+</section>
 
 <section id="background" class="card page hidden"><h2>Default Background</h2><p>Admin একবার background সেট করবে।</p><div class="row"><input id="bg" type="file" accept=".jpg,.jpeg,.png,.webp"><button class="btn" onclick="setBackground()">Upload & Set Default</button></div><div id="bgStatus" class="status"></div></section>
 
@@ -247,25 +234,249 @@
 </div></main></div>
 
 <script>
-let me=null,data={};
-const fields=[["national_id","জাতীয় পরিচয়পত্র নম্বর"],["pin","পিন নম্বর"],["voter_no","ভোটার নম্বর"],["voter_area","ভোটার এরিয়া"],["voter_at","ভোটার অবস্থান"],["name_bn","নাম (বাংলা)"],["name_en","নাম (ইংরেজী)"],["dob","জন্ম তারিখ"],["father","পিতার নাম"],["mother","মাতার নাম"],["spouse","স্বামী/স্ত্রীর নাম"],["gender","লিঙ্গ"],["occupation","পেশা"],["blood_group","রক্তের গ্রুপ"],["birth_place","জন্মস্থান"],["present_address","বর্তমান ঠিকানা"],["permanent_address","স্থায়ী ঠিকানা"]];
+let me=null;
+let data={};
+let adminCustomersCache=[];
+let announcementTimer=null;
+
+const fields=[
+  ["national_id","জাতীয় পরিচয়পত্র নম্বর"],["pin","পিন নম্বর"],["voter_no","ভোটার নম্বর"],
+  ["voter_area","ভোটার এরিয়া"],["voter_at","ভোটার অবস্থান"],["name_bn","নাম (বাংলা)"],
+  ["name_en","নাম (ইংরেজী)"],["dob","জন্ম তারিখ"],["father","পিতার নাম"],["mother","মাতার নাম"],
+  ["spouse","স্বামী/স্ত্রীর নাম"],["gender","লিঙ্গ"],["occupation","পেশা"],["blood_group","রক্তের গ্রুপ"],
+  ["birth_place","জন্মস্থান"],["present_address","বর্তমান ঠিকানা"],["permanent_address","স্থায়ী ঠিকানা"]
+];
+
 const $=id=>document.getElementById(id);
-function showAuth(which){$("login").classList.toggle("hidden",which!=="login");$("register").classList.toggle("hidden",which!=="register");}
-function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));$(id).classList.remove("hidden");}
-function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="adminPayments")loadAdminPayments();if(id==="background")loadBg();if(id==="pricing")loadAdmin();if(id==="buyCredits")loadStatus();if(id==="paymentHistory")loadMyPayments()};return b}
-function buildNav(){let n=$("nav");n.innerHTML="";if(me.role==="admin")n.append(navItem("Dashboard","adminDashboard"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"));else n.append(navItem("Dashboard","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"));n.append(navItem("Generate PDF","customerHome"),navItem("Download History","history"))}
-async function login(e){e.preventDefault();$("loginError").classList.add("hidden");let fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);let r=await fetch("/api/auth/login",{method:"POST",body:fd});let x=await r.json();if(!r.ok){$("loginError").textContent=x.detail||"Login failed";$("loginError").classList.remove("hidden");return}await boot()}
-async function register(e){e.preventDefault();$("regError").classList.add("hidden");let fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);let r=await fetch("/api/auth/register",{method:"POST",body:fd});let x=await r.json();if(!r.ok){$("regError").textContent=x.detail||"Registration failed";$("regError").classList.remove("hidden");return}alert("Account created successfully. এখন Login করুন।");$("email").value=$("regEmail").value;showAuth("login")}
-async function boot(){let r=await fetch("/api/auth/me");if(!r.ok){showAuth("login");$("app").classList.add("hidden");return}let x=await r.json();me=x.user;$("balance").textContent=x.balance;showAuth("login");$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();show("adminDashboard"===me.role?"adminDashboard":"customerHome");if(me.role==="admin")loadAdmin();else loadStatus()}
-async function logout(){await fetch("/api/auth/logout",{method:"POST"});location.reload()}
-function setStatus(t){$("cstatus").textContent=t}
-async function parseSource(){let f=$("source").files[0];if(!f)return setStatus("Source PDF নির্বাচন করুন।");let fd=new FormData();fd.append("file",f);setStatus("তথ্য বের করা হচ্ছে…");let r=await fetch("/api/customer/parse",{method:"POST",body:fd});let x=await r.json();if(!r.ok)return setStatus(x.detail||"Parse failed");data=x.data;renderData();show("customerData");$("title").textContent="তথ্য যাচাই"}
-function renderData(){let box=$("dataForm");box.innerHTML="";fields.forEach(([k,l])=>{let d=document.createElement("div");d.className="field"+(k.includes("address")?" wide":"");d.innerHTML=`<label>${l}</label><input data-k="${k}" value="${String(data[k]||"").replace(/"/g,"&quot;")}">`;box.appendChild(d)})}
-function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
-function clearData(){data={};$("dataForm").innerHTML="";show("customerHome")}
+
+async function readJson(r){
+  try{return await r.json()}catch(e){return {detail:"Server returned an invalid response"}}
+}
+
+function showAuth(which){
+  $("login").classList.toggle("hidden",which!=="login");
+  $("register").classList.toggle("hidden",which!=="register");
+}
+
+function show(id){
+  document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));
+  const el=$(id);
+  if(el)el.classList.remove("hidden");
+}
+
+function navItem(label,id){
+  const b=document.createElement("button");
+  b.textContent=label;
+  b.onclick=async()=>{
+    show(id);
+    document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    $("title").textContent=label;
+
+    if(id==="history")await loadHistory();
+    if(id==="adminDashboard")await loadAdmin();
+    if(id==="adminPayments")await loadAdminBkash();
+    if(id==="adminAnnouncement")await loadAdminAnnouncement();
+    if(id==="background")await loadBg();
+    if(id==="pricing")await loadAdminPrice();
+    if(id==="buyCredits")await loadStatus();
+    if(id==="paymentHistory")await loadMyPayments();
+  };
+  return b;
+}
+
+function buildNav(){
+  const n=$("nav");
+  n.innerHTML="";
+
+  if(me.role==="admin"){
+    n.append(
+      navItem("Dashboard","adminDashboard"),
+      navItem("bKash Settings","adminPayments"),
+      navItem("Admin Message","adminAnnouncement"),
+      navItem("Default Background","background"),
+      navItem("Pricing","pricing")
+    );
+  }else{
+    n.append(
+      navItem("Dashboard","customerHome"),
+      navItem("Buy Credits / bKash","buyCredits"),
+      navItem("Payment History","paymentHistory")
+    );
+  }
+
+  n.append(
+    navItem("Generate PDF","customerHome"),
+    navItem("Download History","history")
+  );
+}
+
+async function login(e){
+  e.preventDefault();
+  $("loginError").classList.add("hidden");
+
+  try{
+    const fd=new FormData();
+    fd.append("email",$("email").value.trim());
+    fd.append("password",$("password").value);
+
+    const r=await fetch("/api/auth/login",{
+      method:"POST",
+      body:fd,
+      credentials:"same-origin"
+    });
+    const x=await readJson(r);
+
+    if(!r.ok){
+      $("loginError").textContent=x.detail||"Invalid email or password";
+      $("loginError").classList.remove("hidden");
+      return;
+    }
+
+    await boot();
+  }catch(e){
+    $("loginError").textContent=e.message||"Login failed";
+    $("loginError").classList.remove("hidden");
+  }
+}
+
+async function register(e){
+  e.preventDefault();
+  $("regError").classList.add("hidden");
+
+  try{
+    const fd=new FormData();
+    fd.append("full_name",$("regName").value.trim());
+    fd.append("email",$("regEmail").value.trim());
+    fd.append("mobile",$("regMobile").value.trim());
+    fd.append("password",$("regPassword").value);
+    fd.append("confirm_password",$("regConfirm").value);
+
+    const r=await fetch("/api/auth/register",{
+      method:"POST",
+      body:fd,
+      credentials:"same-origin"
+    });
+    const x=await readJson(r);
+
+    if(!r.ok){
+      $("regError").textContent=x.detail||"Registration failed";
+      $("regError").classList.remove("hidden");
+      return;
+    }
+
+    // Backend creates the account as ACTIVE and sets the login cookie.
+    // Customer enters the dashboard immediately.
+    await boot();
+  }catch(e){
+    $("regError").textContent=e.message||"Registration failed";
+    $("regError").classList.remove("hidden");
+  }
+}
+
+async function boot(){
+  await loadAnnouncement();
+
+  const r=await fetch("/api/auth/me",{credentials:"same-origin"});
+  if(!r.ok){
+    showAuth("login");
+    $("app").classList.add("hidden");
+    startAnnouncementPolling();
+    return;
+  }
+
+  const x=await readJson(r);
+  me=x.user;
+
+  $("balance").textContent=x.balance;
+  showAuth("login");
+  $("login").classList.add("hidden");
+  $("register").classList.add("hidden");
+  $("app").classList.remove("hidden");
+
+  buildNav();
+  show(me.role==="admin"?"adminDashboard":"customerHome");
+
+  if(me.role==="admin"){
+    await loadAdmin();
+  }else{
+    await loadStatus();
+  }
+
+  startAnnouncementPolling();
+}
+
+async function logout(){
+  await fetch("/api/auth/logout",{
+    method:"POST",
+    credentials:"same-origin"
+  });
+  location.reload();
+}
+
+function setStatus(t){
+  $("cstatus").textContent=t;
+}
+
+async function parseSource(){
+  const f=$("source").files[0];
+  if(!f)return setStatus("Source PDF নির্বাচন করুন।");
+
+  const fd=new FormData();
+  fd.append("file",f);
+  setStatus("তথ্য বের করা হচ্ছে…");
+
+  try{
+    const r=await fetch("/api/customer/parse",{method:"POST",body:fd});
+    const x=await readJson(r);
+
+    if(!r.ok){
+      setStatus(x.detail||"Parse failed");
+      return;
+    }
+
+    data=x.data;
+    renderData();
+    show("customerData");
+    $("title").textContent="তথ্য যাচাই";
+  }catch(e){
+    setStatus(e.message||"Parse failed");
+  }
+}
+
+function renderData(){
+  const box=$("dataForm");
+  box.innerHTML="";
+
+  fields.forEach(([k,l])=>{
+    const d=document.createElement("div");
+    d.className="field"+(k.includes("address")?" wide":"");
+    d.innerHTML=`<label>${l}</label><input data-k="${k}">`;
+    const input=d.querySelector("input");
+    input.value=String(data[k]||"");
+    box.appendChild(d);
+  });
+}
+
+function collect(){
+  document.querySelectorAll("#dataForm [data-k]").forEach(x=>{
+    data[x.dataset.k]=x.value.trim();
+  });
+}
+
+function clearData(){
+  data={};
+  $("dataForm").innerHTML="";
+  show("customerHome");
+}
+
 async function generatePdf(){
   collect();
-  if(!data.national_id)return alert("NID number required");
+
+  if(!data.national_id){
+    alert("NID number required");
+    return;
+  }
 
   const btn=document.querySelector('[onclick="generatePdf()"]');
   const original=btn?btn.innerHTML:"Generate PDF";
@@ -279,24 +490,20 @@ async function generatePdf(){
   setStatus("PDF তৈরি হচ্ছে…");
 
   try{
-    let fd=new FormData();
+    const fd=new FormData();
     fd.append("data_json",JSON.stringify(data));
 
-    let r=await fetch("/api/customer/generate",{
+    const r=await fetch("/api/customer/generate",{
       method:"POST",
       body:fd
     });
 
     if(!r.ok){
-      let x={};
-      try{x=await r.json()}catch(e){}
+      const x=await readJson(r);
       throw new Error(x.detail||"PDF generation failed");
     }
 
     const blob=await r.blob();
-
-    // Open the generated PDF directly in the browser PDF viewer.
-    // User can print or save it from there.
     const u=URL.createObjectURL(blob);
     const w=window.open(u,"_blank");
 
@@ -310,13 +517,11 @@ async function generatePdf(){
 
     setTimeout(()=>URL.revokeObjectURL(u),60000);
 
-    const charged=r.headers.get("X-PDF-Charged")||"0";
     const balance=r.headers.get("X-PDF-Balance");
     if(balance!==null)$("balance").textContent=balance;
 
     setStatus("PDF তৈরি হয়েছে। নতুন ট্যাবে Print / Save করতে পারবেন।");
     await loadHistory();
-
   }catch(e){
     alert(e.message||"PDF generation failed");
     setStatus("PDF তৈরি করা যায়নি।");
@@ -329,39 +534,141 @@ async function generatePdf(){
   }
 }
 
-async function loadStatus(){let r=await fetch("/api/customer/status");if(!r.ok)return;let x=await r.json();$("balance").textContent=x.balance;$("bkashNumber").textContent=x.bkash_number}
-async function submitPayment(){let fd=new FormData();fd.append("amount",$("payAmount").value);fd.append("transaction_id",$("trxId").value);let r=await fetch("/api/customer/payments",{method:"POST",body:fd});let x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("trxId").value="";loadMyPayments()}}
-async function loadMyPayments(){let r=await fetch("/api/customer/payments");if(!r.ok)return;let x=await r.json();$("myPayments").innerHTML=x.payments.map(p=>`<tr><td>${p.created_at}</td><td>৳${p.amount}</td><td>${p.credits}</td><td>${p.transaction_id}</td><td>${p.status}</td></tr>`).join("")}
-async function loadHistory(){let r=await fetch("/api/customer/history");if(!r.ok)return;let x=await r.json();$("historyBody").innerHTML=x.history.map(h=>`<tr><td>${h.id}</td><td>${h.nid||""}</td><td>${h.filename||""}</td><td>${h.charged}</td><td>${h.created_at}</td></tr>`).join("")}
-async function loadAdmin(){
+async function loadStatus(){
   try{
-    const r=await fetch("/api/admin/customers");
-    if(!r.ok) throw new Error("Customer list load failed");
-    const x=await r.json();
+    const r=await fetch("/api/customer/status",{credentials:"same-origin"});
+    if(!r.ok)return;
 
-    $("customerCount").textContent=(x.customers||[]).length;
-    renderAdminCustomers(x.customers||[]);
+    const x=await readJson(r);
+    $("balance").textContent=x.balance;
 
-    const s=await (await fetch("/api/customer/status")).json();
-    $("adminPrice").textContent=s.price;
-    $("price").value=s.price;
-
-    const bg=await (await fetch("/api/admin/background")).json();
-    $("bgName").textContent=(bg.background&&bg.background.name)||"None";
-
-    loadAdminPayments();
+    if($("bkashNumber")){
+      $("bkashNumber").textContent=x.bkash_number||"Not set";
+    }
+    if($("customerBkashNumber")){
+      $("customerBkashNumber").textContent=x.bkash_number||"Not set";
+    }
   }catch(e){
     console.error(e);
-    $("adminCustomerBody").innerHTML='<tr><td colspan="8">Customer list load করা যায়নি।</td></tr>';
+  }
+}
+
+async function submitPayment(){
+  const fd=new FormData();
+  fd.append("amount",$("payAmount").value);
+  fd.append("transaction_id",$("trxId").value);
+
+  try{
+    const r=await fetch("/api/customer/payments",{method:"POST",body:fd});
+    const x=await readJson(r);
+
+    $("payStatus").textContent=r.ok
+      ?(x.message||"Request submitted")
+      :(x.detail||"Payment request failed");
+
+    if(r.ok){
+      $("trxId").value="";
+      await loadMyPayments();
+    }
+  }catch(e){
+    $("payStatus").textContent="Payment request service is not available.";
+  }
+}
+
+async function loadMyPayments(){
+  try{
+    const r=await fetch("/api/customer/payments");
+    if(!r.ok)return;
+
+    const x=await readJson(r);
+    if($("myPayments")){
+      $("myPayments").innerHTML=(x.payments||[]).map(p=>`
+        <tr>
+          <td>${esc(p.created_at)}</td>
+          <td>৳${esc(p.amount)}</td>
+          <td>${esc(p.credits)}</td>
+          <td>${esc(p.transaction_id)}</td>
+          <td>${esc(p.status)}</td>
+        </tr>
+      `).join("");
+    }
+  }catch(e){
+    console.error(e);
+  }
+}
+
+async function loadHistory(){
+  try{
+    const r=await fetch("/api/customer/history");
+    if(!r.ok)return;
+
+    const x=await readJson(r);
+    $("historyBody").innerHTML=(x.history||[]).map(h=>`
+      <tr>
+        <td>${esc(h.id)}</td>
+        <td>${esc(h.nid||"")}</td>
+        <td>${esc(h.filename||"")}</td>
+        <td>${esc(h.charged)}</td>
+        <td>${esc(h.created_at)}</td>
+      </tr>
+    `).join("");
+  }catch(e){
+    console.error(e);
+  }
+}
+
+async function loadAdmin(){
+  const body=$("adminCustomerBody");
+
+  try{
+    body.innerHTML='<tr><td colspan="8">Loading customers...</td></tr>';
+
+    const r=await fetch("/api/admin/customers",{credentials:"same-origin"});
+    const x=await readJson(r);
+
+    if(!r.ok){
+      throw new Error(x.detail||"Customer list load failed");
+    }
+
+    adminCustomersCache=x.customers||[];
+    $("customerCount").textContent=adminCustomersCache.length;
+
+    // List stays hidden until Total Customers is clicked.
+    if($("adminCustomerListBox").classList.contains("hidden")){
+      body.innerHTML='<tr><td colspan="8" style="text-align:center">Total Customers-এর উপর click করলে সব customer দেখা যাবে।</td></tr>';
+    }else{
+      renderAdminCustomers(adminCustomersCache);
+    }
+
+    await loadAdminPrice();
+    await loadAdminBkash();
+    await loadAdminAnnouncement();
+    await loadBg();
+
+  }catch(e){
+    console.error(e);
+    body.innerHTML=`<tr><td colspan="8">Customer list load করা যায়নি: ${esc(e.message)}</td></tr>`;
+  }
+}
+
+function toggleCustomerList(){
+  const box=$("adminCustomerListBox");
+
+  if(box.classList.contains("hidden")){
+    box.classList.remove("hidden");
+    renderAdminCustomers(adminCustomersCache);
+    box.scrollIntoView({behavior:"smooth",block:"center"});
+  }else{
+    box.classList.add("hidden");
   }
 }
 
 function esc(v){
-  return String(v ?? "")
+  return String(v??"")
     .replace(/&/g,"&amp;")
     .replace(/</g,"&lt;")
     .replace(/>/g,"&gt;")
-    .replace(/\"/g,"&quot;")
+    .replace(/"/g,"&quot;")
     .replace(/'/g,"&#039;");
 }
 
@@ -378,14 +685,20 @@ function renderAdminCustomers(customers){
       <td>${esc(c.email)}</td>
       <td>${esc(c.mobile||"")}</td>
       <td>${esc(c.credits||0)}</td>
-      <td>${c.active ? "Active" : "Inactive"}</td>
+      <td>${c.active?"Active":"Inactive"}</td>
       <td>${esc(c.created_at||"")}</td>
       <td>
-        <button class="btn secondary" type="button" onclick='openCustomerEditor(${JSON.stringify(c)})'>Edit</button>
+        <button class="btn secondary" type="button" onclick="openCustomerEditorById(${Number(c.id)})">Edit</button>
         <button class="btn danger" type="button" onclick="deleteCustomer(${Number(c.id)})">Delete</button>
       </td>
     </tr>
   `).join("");
+}
+
+function openCustomerEditorById(id){
+  const c=adminCustomersCache.find(x=>Number(x.id)===Number(id));
+  if(!c)return;
+  openCustomerEditor(c);
 }
 
 function openCustomerEditor(c){
@@ -394,7 +707,8 @@ function openCustomerEditor(c){
   $("editCustomerMobile").value=c.mobile||"";
   $("editCustomerEmail").value=c.email||"";
   $("editCustomerPassword").value="";
-  $("editCustomerActive").value=c.active ? "1" : "0";
+  $("editCustomerActive").value=c.active?"1":"0";
+
   $("adminCustomerEditBox").style.display="block";
   $("adminCustomerEditBox").scrollIntoView({behavior:"smooth",block:"center"});
 }
@@ -406,7 +720,7 @@ function closeCustomerEditor(){
 
 async function updateCustomer(){
   const id=$("editCustomerId").value;
-  if(!id) return;
+  if(!id)return;
 
   const fd=new FormData();
   fd.append("user_id",id);
@@ -419,43 +733,239 @@ async function updateCustomer(){
 
   try{
     const r=await fetch("/api/admin/customer/update",{method:"POST",body:fd});
-    const x=await r.json();
+    const x=await readJson(r);
+
     if(!r.ok){
       $("adminCustomerStatus").textContent=x.detail||"Customer update failed";
       return;
     }
+
     $("adminCustomerStatus").textContent=x.message||"Customer updated successfully";
     closeCustomerEditor();
     await loadAdmin();
+
+    $("adminCustomerListBox").classList.remove("hidden");
+    renderAdminCustomers(adminCustomersCache);
   }catch(e){
-    console.error(e);
     $("adminCustomerStatus").textContent="Customer update error: "+e.message;
   }
 }
 
 async function deleteCustomer(id){
-  if(!confirm("এই customer account delete করতে চান?")) return;
+  if(!confirm("এই customer account delete করতে চান?"))return;
 
   const fd=new FormData();
   fd.append("user_id",id);
 
   try{
     const r=await fetch("/api/admin/customer/delete",{method:"POST",body:fd});
-    const x=await r.json();
+    const x=await readJson(r);
+
     if(!r.ok){
       alert(x.detail||"Customer delete failed");
       return;
     }
+
     $("adminCustomerStatus").textContent=x.message||"Customer deleted successfully";
     await loadAdmin();
+
+    $("adminCustomerListBox").classList.remove("hidden");
+    renderAdminCustomers(adminCustomersCache);
   }catch(e){
-    console.error(e);
     alert("Customer delete error: "+e.message);
   }
 }
 
-async function setBackground(){let f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");let fd=new FormData();fd.append("file",f);let r=await fetch("/api/admin/background",{method:"POST",body:fd});let x=await r.json();$("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed")}
-async function loadBg(){let r=await fetch("/api/admin/background");if(!r.ok)return;let x=await r.json();$("bgStatus").textContent=x.background.name?"Current Default: "+x.background.name:"No default background set"}
-async function savePrice(){let fd=new FormData();fd.append("web_price",$("price").value);let r=await fetch("/api/admin/price",{method:"POST",body:fd});let x=await r.json();if(!r.ok)alert(x.detail||"Failed");else alert("Price saved")}
-$("loginForm").addEventListener("submit",login);$("registerForm").addEventListener("submit",register);boot();
+async function loadAdminPrice(){
+  try{
+    const r=await fetch("/api/admin/price",{credentials:"same-origin"});
+    const x=await readJson(r);
+    if(!r.ok)return;
+
+    if($("adminPrice"))$("adminPrice").textContent=x.web_price;
+    if($("price"))$("price").value=x.web_price;
+  }catch(e){
+    console.error(e);
+  }
+}
+
+async function savePrice(){
+  const fd=new FormData();
+  fd.append("web_price",$("price").value);
+
+  const r=await fetch("/api/admin/price",{method:"POST",body:fd,credentials:"same-origin"});
+  const x=await readJson(r);
+
+  if(!r.ok){
+    alert(x.detail||"Failed");
+    return;
+  }
+
+  if($("adminPrice"))$("adminPrice").textContent=x.web_price;
+  alert("Price saved");
+}
+
+async function loadAdminBkash(){
+  try{
+    const r=await fetch("/api/admin/bkash",{credentials:"same-origin"});
+    const x=await readJson(r);
+
+    if(!r.ok){
+      throw new Error(x.detail||"Could not load bKash number");
+    }
+
+    $("adminBkashNumber").value=x.bkash_number||"";
+  }catch(e){
+    console.error(e);
+    if($("bkashSettingsStatus")){
+      $("bkashSettingsStatus").textContent=e.message;
+    }
+  }
+}
+
+async function saveBkashNumber(){
+  const number=$("adminBkashNumber").value.trim();
+
+  if(!number){
+    $("bkashSettingsStatus").textContent="bKash number দিন।";
+    return;
+  }
+
+  const fd=new FormData();
+  fd.append("bkash_number",number);
+
+  try{
+    const r=await fetch("/api/admin/bkash",{
+      method:"POST",
+      body:fd,
+      credentials:"same-origin"
+    });
+    const x=await readJson(r);
+
+    if(!r.ok){
+      $("bkashSettingsStatus").textContent=x.detail||"bKash number save failed";
+      return;
+    }
+
+    $("bkashSettingsStatus").textContent="bKash number saved: "+x.bkash_number;
+  }catch(e){
+    $("bkashSettingsStatus").textContent="Error: "+e.message;
+  }
+}
+
+async function loadAdminAnnouncement(){
+  try{
+    const r=await fetch("/api/admin/announcement",{credentials:"same-origin"});
+    const x=await readJson(r);
+
+    if(!r.ok)return;
+    $("adminAnnouncementText").value=x.message||"";
+  }catch(e){
+    console.error(e);
+  }
+}
+
+async function saveAnnouncement(){
+  const message=$("adminAnnouncementText").value.trim();
+
+  const fd=new FormData();
+  fd.append("message",message);
+
+  try{
+    const r=await fetch("/api/admin/announcement",{
+      method:"POST",
+      body:fd,
+      credentials:"same-origin"
+    });
+    const x=await readJson(r);
+
+    if(!r.ok){
+      $("announcementStatus").textContent=x.detail||"Message save failed";
+      return;
+    }
+
+    $("announcementStatus").textContent=message
+      ?"Message saved. সব user-এর screen-এ scrolling হবে।"
+      :"Message cleared.";
+
+    await loadAnnouncement(true);
+  }catch(e){
+    $("announcementStatus").textContent="Error: "+e.message;
+  }
+}
+
+async function loadAnnouncement(force=false){
+  try{
+    const r=await fetch("/api/announcement",{cache:"no-store"});
+    if(!r.ok)return;
+
+    const x=await readJson(r);
+    const message=(x.message||"").trim();
+
+    const bar=$("announcementBar");
+    const track=$("announcementTrack");
+
+    if(!message){
+      bar.classList.add("hidden");
+      track.textContent="";
+      return;
+    }
+
+    if(force || track.textContent!==message){
+      track.textContent=message;
+      track.style.animation="none";
+      void track.offsetWidth;
+      track.style.animation="";
+    }
+
+    bar.classList.remove("hidden");
+  }catch(e){
+    console.error("Announcement load error:",e);
+  }
+}
+
+function startAnnouncementPolling(){
+  if(announcementTimer)clearInterval(announcementTimer);
+  announcementTimer=setInterval(()=>loadAnnouncement(false),30000);
+}
+
+async function setBackground(){
+  const f=$("bg").files[0];
+  if(!f)return alert("Background photo নির্বাচন করুন");
+
+  const fd=new FormData();
+  fd.append("file",f);
+
+  const r=await fetch("/api/admin/background",{method:"POST",body:fd});
+  const x=await readJson(r);
+
+  $("bgStatus").textContent=r.ok
+    ?"Default Background set: "+x.selected
+    :(x.detail||"Upload failed");
+
+  if(r.ok)$("bgName").textContent=x.selected;
+}
+
+async function loadBg(){
+  try{
+    const r=await fetch("/api/admin/background");
+    const x=await readJson(r);
+
+    if(!r.ok)return;
+
+    $("bgStatus").textContent=x.background.name
+      ?"Current Default: "+x.background.name
+      :"No default background set";
+
+    $("bgName").textContent=x.background.name||"None";
+  }catch(e){
+    console.error(e);
+  }
+}
+
+$("loginForm").addEventListener("submit",login);
+$("registerForm").addEventListener("submit",register);
+
+loadAnnouncement();
+boot();
 </script></body></html>

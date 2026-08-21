@@ -11,12 +11,12 @@
 @media(max-width:800px){.side{width:210px}.main{margin-left:210px}.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}}@media(max-width:650px){.side{display:none}.main{margin-left:0}.row{flex-direction:column;align-items:stretch}.top{padding:0 14px}.content{padding:12px}}
 .loading-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px}.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 .announcement{width:100%;height:42px;background:#fff4c2;border-bottom:1px solid #eadb8d;overflow:hidden;display:flex;align-items:center;position:relative;z-index:50}
-.announcement-track{display:inline-block;white-space:nowrap;padding-left:100%;font-weight:800;color:#694f00;animation:announcementMove 18s linear infinite}
+.announcement-track{display:inline-block;white-space:nowrap;padding-left:100%;font-weight:800;color:#694f00;animation:announcementMove 90s linear infinite}
 @keyframes announcementMove{from{transform:translateX(-100%)}to{transform:translateX(100vw)}}
 .announcement-track:hover{animation-play-state:paused}
 .clickable-stat{cursor:pointer;transition:.15s}
 .clickable-stat:hover{transform:translateY(-2px);box-shadow:0 5px 18px #1e5a8c18}
-@media(max-width:650px){.announcement-track{animation-duration:14s}}
+@media(max-width:650px){.announcement-track{animation-duration:75s}}
 </style>
 </head>
 <body>
@@ -52,8 +52,12 @@
 <main class="main"><header class="top"><strong id="title">Dashboard</strong><div><span class="badge">Balance: <b id="balance">0</b></span></div></header>
 <div class="content">
 
-<section id="customerHome" class="card page"><h2>PDF তৈরি করুন</h2><p>Source PDF upload করুন। Default Background system ব্যবহার করবে।</p>
-<div class="paybox"><b>Admin bKash Number:</b> <strong id="customerBkashNumber">Loading...</strong></div>
+<section id="customerHome" class="card page"><h2>PDF তৈরি করুন</h2>
+<div class="paybox" style="margin:10px 0 14px;padding:12px 15px">
+  <strong>Admin bKash Number:</strong>
+  <span id="generateBkashNumber" style="font-size:20px;font-weight:800;margin-left:8px">Loading...</span>
+</div>
+<p>Source PDF upload করুন। Default Background system ব্যবহার করবে।</p>
 <div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div><div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div></section>
 
 <section id="customerData" class="card page hidden"><h2>তথ্য যাচাই</h2><p>PDF তৈরি করার আগে প্রয়োজন হলে তথ্য edit করুন।</p><div id="dataForm" class="form-grid"></div><div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div></section>
@@ -205,7 +209,7 @@
 
 <section id="adminPayments" class="card page hidden">
   <h2>bKash Settings</h2>
-  <p>এখান থেকে bKash নম্বর add/change করতে পারবেন। Customer account-এ এই নম্বরটি দেখানো হবে।</p>
+  <p>এখান থেকে bKash নম্বর add/change করতে পারবেন। নিচে customer-দের পাঠানো payment request দেখাবে। আপনি Approve করলে তবেই Balance যোগ হবে।</p>
   <div class="paybox">
     <div class="field">
       <label>bKash Personal Number (Send Money)</label>
@@ -214,6 +218,29 @@
     <button class="btn" type="button" onclick="saveBkashNumber()">bKash Number Save করুন</button>
     <div id="bkashSettingsStatus" class="status"></div>
   </div>
+  <div class="row" style="margin-top:14px">
+    <strong>Payment Requests</strong>
+    <button class="btn secondary" type="button" onclick="loadAdminPayments()">Refresh Requests</button>
+  </div>
+  <div class="table-wrap" style="margin-top:10px">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Amount</th>
+          <th>Sender bKash</th>
+          <th>Transaction ID</th>
+          <th>Note</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="adminPaymentBody">
+        <tr><td colspan="7">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="adminPaymentStatus" class="status"></div>
 </section>
 
 <section id="adminAnnouncement" class="card page hidden">
@@ -275,7 +302,7 @@ function navItem(label,id){
 
     if(id==="history")await loadHistory();
     if(id==="adminDashboard")await loadAdmin();
-    if(id==="adminPayments")await loadAdminBkash();
+    if(id==="adminPayments"){await loadAdminBkash();await loadAdminPayments();}
     if(id==="adminAnnouncement")await loadAdminAnnouncement();
     if(id==="background")await loadBg();
     if(id==="pricing")await loadAdminPrice();
@@ -505,23 +532,20 @@ async function generatePdf(){
 
     const blob=await r.blob();
     const u=URL.createObjectURL(blob);
-    const w=window.open(u,"_blank");
+    const disposition=r.headers.get("Content-Disposition")||"";
+    const match=disposition.match(/filename="([^"]+)"/i);
+    const filename=match ? match[1] : ("V1_"+String(data.national_id||"report")+".pdf");
 
-    if(!w){
-      const a=document.createElement("a");
-      a.href=u;
-      a.target="_blank";
-      a.rel="noopener";
-      a.click();
-    }
+    const a=document.createElement("a");
+    a.href=u;
+    a.download=filename;
+    a.style.display="none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
 
-    setTimeout(()=>URL.revokeObjectURL(u),60000);
-
-    const balance=r.headers.get("X-PDF-Balance");
-    if(balance!==null)$("balance").textContent=balance;
-
-    setStatus("PDF তৈরি হয়েছে। নতুন ট্যাবে Print / Save করতে পারবেন।");
-    await loadHistory();
+    // Hand the file to the browser immediately; don't wait for history refresh.
+    setTimeout(()=>URL.revokeObjectURL(u),30000);
   }catch(e){
     alert(e.message||"PDF generation failed");
     setStatus("PDF তৈরি করা যায়নি।");
@@ -545,8 +569,8 @@ async function loadStatus(){
     if($("bkashNumber")){
       $("bkashNumber").textContent=x.bkash_number||"Not set";
     }
-    if($("customerBkashNumber")){
-      $("customerBkashNumber").textContent=x.bkash_number||"Not set";
+    if($("generateBkashNumber")){
+      $("generateBkashNumber").textContent=x.bkash_number||"Not set";
     }
   }catch(e){
     console.error(e);
@@ -554,20 +578,43 @@ async function loadStatus(){
 }
 
 async function submitPayment(){
+  const amount=Number($("payAmount").value||0);
+  const sender=$("senderBkash").value.trim();
+  const trx=$("trxId").value.trim();
+  const note=$("paymentNote").value.trim();
+
+  if(amount<=0){
+    $("payStatus").textContent="Amount দিন।";
+    return;
+  }
+  if(!trx){
+    $("payStatus").textContent="Transaction ID দিন।";
+    return;
+  }
+
   const fd=new FormData();
-  fd.append("amount",$("payAmount").value);
-  fd.append("transaction_id",$("trxId").value);
+  fd.append("amount",String(amount));
+  fd.append("transaction_id",trx);
+  fd.append("sender_bkash",sender);
+  fd.append("note",note);
 
   try{
-    const r=await fetch("/api/customer/payments",{method:"POST",body:fd});
+    const r=await fetch("/api/customer/payments",{
+      method:"POST",
+      body:fd,
+      credentials:"same-origin"
+    });
     const x=await readJson(r);
 
     $("payStatus").textContent=r.ok
-      ?(x.message||"Request submitted")
+      ?(x.message||"Payment request submitted")
       :(x.detail||"Payment request failed");
 
     if(r.ok){
+      $("payAmount").value="";
+      $("senderBkash").value="";
       $("trxId").value="";
+      $("paymentNote").value="";
       await loadMyPayments();
     }
   }catch(e){
@@ -773,6 +820,97 @@ async function deleteCustomer(id){
     renderAdminCustomers(adminCustomersCache);
   }catch(e){
     alert("Customer delete error: "+e.message);
+  }
+}
+
+
+async function loadAdminPayments(){
+  const body=$("adminPaymentBody");
+  if(!body)return;
+
+  try{
+    body.innerHTML='<tr><td colspan="7">Loading payment requests...</td></tr>';
+
+    const r=await fetch("/api/admin/payments",{credentials:"same-origin",cache:"no-store"});
+    const x=await readJson(r);
+
+    if(!r.ok){
+      throw new Error(x.detail||"Payment request load failed");
+    }
+
+    const payments=x.payments||[];
+
+    if(!payments.length){
+      body.innerHTML='<tr><td colspan="7" style="text-align:center">কোনো payment request নেই।</td></tr>';
+      return;
+    }
+
+    body.innerHTML=payments.map(p=>`
+      <tr>
+        <td>
+          <b>${esc(p.full_name||"Customer")}</b><br>
+          <span class="muted">${esc(p.email||"")}</span>
+        </td>
+        <td>৳${esc(p.amount)}</td>
+        <td>${esc(p.sender_bkash||"-")}</td>
+        <td><b>${esc(p.transaction_id||"")}</b><br><span class="muted">${esc(p.created_at||"")}</span></td>
+        <td>${esc(p.note||"-")}</td>
+        <td>${esc(p.status||"")}</td>
+        <td>
+          ${p.status==="pending"
+            ? `<button class="btn success" type="button" onclick="approvePayment(${Number(p.id)})">Approve</button>
+               <button class="btn danger" type="button" onclick="rejectPayment(${Number(p.id)})">Reject</button>`
+            : "-"}
+        </td>
+      </tr>
+    `).join("");
+  }catch(e){
+    body.innerHTML=`<tr><td colspan="7">${esc(e.message||"Payment request load failed")}</td></tr>`;
+  }
+}
+
+async function approvePayment(id){
+  if(!confirm("এই payment request approve করে balance add করতে চান?"))return;
+
+  try{
+    const r=await fetch("/api/admin/payments/"+id+"/approve",{
+      method:"POST",
+      credentials:"same-origin"
+    });
+    const x=await readJson(r);
+
+    if(!r.ok){
+      alert(x.detail||"Payment approval failed");
+      return;
+    }
+
+    $("adminPaymentStatus").textContent=x.message||"Payment approved.";
+    await loadAdminPayments();
+    await loadAdmin();
+  }catch(e){
+    alert(e.message||"Payment approval failed");
+  }
+}
+
+async function rejectPayment(id){
+  if(!confirm("এই payment request reject করতে চান?"))return;
+
+  try{
+    const r=await fetch("/api/admin/payments/"+id+"/reject",{
+      method:"POST",
+      credentials:"same-origin"
+    });
+    const x=await readJson(r);
+
+    if(!r.ok){
+      alert(x.detail||"Payment rejection failed");
+      return;
+    }
+
+    $("adminPaymentStatus").textContent=x.message||"Payment rejected.";
+    await loadAdminPayments();
+  }catch(e){
+    alert(e.message||"Payment rejection failed");
   }
 }
 

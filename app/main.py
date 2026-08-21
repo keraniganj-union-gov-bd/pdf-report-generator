@@ -1324,84 +1324,130 @@ async def admin_add_customer(
     role: str = Form("customer"),
     web_session: str | None = Cookie(default=None)
 ):
+    # Admin check
     require_admin(web_session)
 
+    # Clean input
     email = email.strip().lower()
     password = password.strip()
     full_name = full_name.strip()
     mobile = mobile.strip()
-    role = role.strip() or "customer"
+    role = role.strip().lower() or "customer"
 
+    # Validation
     if not email:
-        raise HTTPException(400, "Email is required")
+        raise HTTPException(
+            status_code=400,
+            detail="Email is required"
+        )
 
     if not password:
-        raise HTTPException(400, "Password is required")
+        raise HTTPException(
+            status_code=400,
+            detail="Password is required"
+        )
 
     if len(password) < 6:
-        raise HTTPException(400, "Password must be at least 6 characters")
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 6 characters"
+        )
 
     if role not in ("customer", "admin"):
         role = "customer"
 
-    with prod_engine.begin() as c:
-        existing = c.execute(
-            text("SELECT id FROM web_users WHERE email=:email"),
-            {"email": email}
-        ).mappings().first()
+    try:
+        with prod_engine.begin() as c:
 
-        if existing:
-            raise HTTPException(400, "Email already exists")
+            # Check existing email
+            existing = c.execute(
+                text("""
+                    SELECT id
+                    FROM web_users
+                    WHERE email = :email
+                """),
+                {
+                    "email": email
+                }
+            ).mappings().first()
 
-        uid = c.execute(
-            text("""
-                INSERT INTO web_users
-                (
-                    email,
-                    password_hash,
-                    role,
-                    active,
-                    created_at,
-                    full_name,
-                    mobile
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Email already exists"
                 )
-                VALUES
-                (
-                    :email,
-                    :password_hash,
-                    :role,
-                    1,
-                    :created_at,
-                    :full_name,
-                    :mobile
-                )
-                RETURNING id
-            """),
-            {
-                "email": email,
-                "password_hash": _hash_password(password),
-                "role": role,
-                "created_at": datetime.utcnow().isoformat(),
-                "full_name": full_name,
-                "mobile": mobile,
-            }
-        ).scalar_one()
 
-        # নতুন user-এর wallet তৈরি
-        c.execute(
-            text("""
-                INSERT INTO web_wallets(user_id, credits)
-                VALUES(:uid, 0)
-                ON CONFLICT (user_id) DO NOTHING
-            """),
-            {"uid": uid}
+            # Create customer
+            c.execute(
+                text("""
+                    INSERT INTO web_users
+                    (
+                        email,
+                        password_hash,
+                        role,
+                        active,
+                        created_at,
+                        full_name,
+                        mobile
+                    )
+                    VALUES
+                    (
+                        :email,
+                        :password_hash,
+                        :role,
+                        :active,
+                        :created_at,
+                        :full_name,
+                        :mobile
+                    )
+                """),
+                {
+                    "email": email,
+                    "password_hash": _hash_password(password),
+                    "role": role,
+                    "active": 1,
+                    "created_at": datetime.utcnow().isoformat(),
+                    "full_name": full_name,
+                    "mobile": mobile,
+                }
+            )
+
+            # Get newly created customer ID
+            new_user = c.execute(
+                text("""
+                    SELECT id
+                    FROM web_users
+                    WHERE email = :email
+                """),
+                {
+                    "email": email
+                }
+            ).mappings().first()
+
+            if not new_user:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Customer was not created"
+                )
+
+            uid = new_user["id"]
+
+        return {
+            "success": True,
+            "message": "Customer created successfully",
+            "id": uid
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        print("ADMIN ADD CUSTOMER ERROR:", repr(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Customer save failed: {str(e)}"
         )
-
-    return {
-        "success": True,
-        "message": "Customer created successfully",
-        "id": uid
-    }
 
 @app.post("/api/admin/customer/update")
 async def admin_update_customer(

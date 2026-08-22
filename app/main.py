@@ -21,7 +21,7 @@ except ImportError:
     WeasyHTML = None
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
-BASE = Path(__file__).resolve().parent.parent
+BASE = Path(__file__).resolve().parent
 
 DATA = BASE / "data"
 GENERATED = BASE / "generated"

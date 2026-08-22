@@ -21,7 +21,7 @@ except ImportError:
     WeasyHTML = None
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
-BASE = Path(__file__).resolve().parent.parent
+BASE = Path(__file__).resolve().parent
 
 DATA = BASE / "data"
 GENERATED = BASE / "generated"
@@ -35,7 +35,6 @@ BACKGROUNDS = DATA / "backgrounds"
 BACKGROUNDS.mkdir(exist_ok=True)
 
 app = FastAPI(title="Free PDF Report Generator V46")
-STATIC.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 FIELDS = [
@@ -73,11 +72,9 @@ LABELS = {
 # ---------------------------------------------------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if DATABASE_URL:
+    # Neon is standard PostgreSQL. Do NOT rewrite the URL to the
+    # CockroachDB SQLAlchemy dialect.
     PROD_DB_URL = DATABASE_URL
-
-    if PROD_DB_URL.startswith("postgresql://"):
-        PROD_DB_URL = "cockroachdb+psycopg2://" + PROD_DB_URL[len("postgresql://"):]
-
 else:
     PROD_DB_URL = f"sqlite:///{(DATA / 'web.sqlite3').as_posix()}"
 
@@ -183,26 +180,11 @@ def prod_init():
                 verified_at VARCHAR(40)
             )
         """))
-        # Backward-compatible fields for payment requests created by older versions.
-        for ddl in [
-            "ALTER TABLE web_payments ADD COLUMN sender_bkash VARCHAR(50)",
-            "ALTER TABLE web_payments ADD COLUMN note TEXT",
-            "ALTER TABLE web_payments ADD COLUMN verified_at VARCHAR(40)"
-        ]:
-            try:
-                c.execute(text(ddl))
-            except Exception:
-                pass
-        # Backward-compatible migration for older local web databases.
-        for ddl in [
-            "ALTER TABLE web_generations ADD COLUMN pdf_data TEXT",
-            "ALTER TABLE web_generations ADD COLUMN person_name TEXT DEFAULT ''",
-            "ALTER TABLE web_generations ADD COLUMN dob VARCHAR(50) DEFAULT ''"
-        ]:
-            try:
-                c.execute(text(ddl))
-            except Exception:
-                pass
+        # Neon PostgreSQL starts with a fresh schema, so do not run the old
+        # best-effort ALTER TABLE migrations here. A failed ALTER TABLE inside
+        # one PostgreSQL transaction aborts the whole transaction and causes
+        # later statements (such as CREATE TABLE api_plans) to fail with
+        # "current transaction is aborted".
 
         c.execute(text("""
             CREATE TABLE IF NOT EXISTS api_plans (

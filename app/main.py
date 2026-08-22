@@ -74,8 +74,12 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if DATABASE_URL:
     PROD_DB_URL = DATABASE_URL
 
-    if PROD_DB_URL.startswith("postgresql://"):
-        PROD_DB_URL = "cockroachdb+psycopg2://" + PROD_DB_URL[len("postgresql://"):]
+    if PROD_DB_URL.startswith("postgres://"):
+        PROD_DB_URL = "postgresql+psycopg2://" + PROD_DB_URL[len("postgres://"):]
+    elif PROD_DB_URL.startswith("postgresql://"):
+        PROD_DB_URL = "postgresql+psycopg2://" + PROD_DB_URL[len("postgresql://"):]
+    elif PROD_DB_URL.startswith("cockroachdb://"):
+        PROD_DB_URL = "cockroachdb+psycopg2://" + PROD_DB_URL[len("cockroachdb://"):]
 
 else:
     PROD_DB_URL = f"sqlite:///{(DATA / 'web.sqlite3').as_posix()}"
@@ -149,6 +153,8 @@ def prod_init():
                 channel VARCHAR(20) NOT NULL DEFAULT 'web',
                 charged INTEGER NOT NULL DEFAULT 0,
                 pdf_data TEXT,
+                person_name TEXT DEFAULT '',
+                dob VARCHAR(50) DEFAULT '',
                 created_at VARCHAR(40) NOT NULL
             )
         """))
@@ -182,24 +188,21 @@ def prod_init():
                 verified_at VARCHAR(40)
             )
         """))
-        # Backward-compatible fields for payment requests created by older versions.
-        for ddl in [
+        # Backward-compatible migrations. Each ALTER runs in its own
+        # savepoint so a harmless "column already exists" error cannot abort
+        # the main PostgreSQL/Neon transaction.
+        migrations = [
             "ALTER TABLE web_payments ADD COLUMN sender_bkash VARCHAR(50)",
             "ALTER TABLE web_payments ADD COLUMN note TEXT",
-            "ALTER TABLE web_payments ADD COLUMN verified_at VARCHAR(40)"
-        ]:
-            try:
-                c.execute(text(ddl))
-            except Exception:
-                pass
-        # Backward-compatible migration for older local web databases.
-        for ddl in [
+            "ALTER TABLE web_payments ADD COLUMN verified_at VARCHAR(40)",
             "ALTER TABLE web_generations ADD COLUMN pdf_data TEXT",
             "ALTER TABLE web_generations ADD COLUMN person_name TEXT DEFAULT ''",
-            "ALTER TABLE web_generations ADD COLUMN dob VARCHAR(50) DEFAULT ''"
-        ]:
+            "ALTER TABLE web_generations ADD COLUMN dob VARCHAR(50) DEFAULT ''",
+        ]
+        for ddl in migrations:
             try:
-                c.execute(text(ddl))
+                with c.begin_nested():
+                    c.execute(text(ddl))
             except Exception:
                 pass
 

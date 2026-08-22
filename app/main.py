@@ -2053,8 +2053,13 @@ async def customer_generate(
 
 
 @app.get("/api/admin/generation-history")
-def admin_generation_history(web_session: str | None = Cookie(default=None)):
+def admin_generation_history(
+    web_session: str | None = Cookie(default=None),
+    limit: int = 500,
+):
+    """Admin-only PDF make history. Date filtering is handled in the UI using Dhaka time."""
     require_admin(web_session)
+    limit = max(1, min(int(limit or 500), 1000))
     with prod_engine.begin() as c:
         rows = c.execute(text("""
             SELECT
@@ -2068,8 +2073,8 @@ def admin_generation_history(web_session: str | None = Cookie(default=None)):
             FROM web_generations g
             JOIN web_users u ON u.id=g.user_id
             ORDER BY g.id DESC
-            LIMIT 200
-        """)).mappings().all()
+            LIMIT :limit
+        """), {"limit": limit}).mappings().all()
     return {"success": True, "history": [dict(r) for r in rows]}
 
 

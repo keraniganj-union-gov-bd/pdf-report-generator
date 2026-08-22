@@ -23,19 +23,29 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
 BASE = Path(__file__).resolve().parent
 
+BASE = Path(__file__).resolve().parent
+
 DATA = BASE / "data"
 GENERATED = BASE / "generated"
-STATIC = BASE / "static"
-FONT = BASE / "fonts" / "NotoSansBengali-Regular.ttf"
-FONT_REGULAR = BASE / "fonts" / "NotoSansBengali-Regular.ttf"
-FONT_SEMIBOLD = BASE / "fonts" / "NotoSansBengali-SemiBold.ttf"
-DB = DATA / "dev.sqlite3"
-DATA.mkdir(exist_ok=True); GENERATED.mkdir(exist_ok=True)
+
+# static এবং fonts app folder-এর বাইরে আছে
+STATIC = BASE.parent / "static"
+
+FONT = BASE.parent / "fonts" / "NotoSansBengali-Regular.ttf"
+FONT_REGULAR = BASE.parent / "fonts" / "NotoSansBengali-Regular.ttf"
+FONT_SEMIBOLD = BASE.parent / "fonts" / "NotoSansBengali-SemiBold.ttf"
+
+DB = DATA / "dev.sqlite"
+
+DATA.mkdir(parents=True, exist_ok=True)
+GENERATED.mkdir(parents=True, exist_ok=True)
 STATIC.mkdir(parents=True, exist_ok=True)
+
 BACKGROUNDS = DATA / "backgrounds"
-BACKGROUNDS.mkdir(exist_ok=True)
+BACKGROUNDS.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Free PDF Report Generator V46")
+
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 
 FIELDS = [

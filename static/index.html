@@ -110,6 +110,48 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
         </div>
       </section>
 
+      <section id="apiManagement" class="card page hidden">
+        <div class="modal-head"><div><h2 style="margin:0">API Management</h2><p>Client-এর website থেকে source PDF upload করে আপনার PDF generator ব্যবহার করার API clients ও plans পরিচালনা করুন।</p></div><button class="btn secondary" onclick="loadApiManagement()">Refresh</button></div>
+        <div class="paybox" style="margin-top:14px">
+          <h3 style="margin-top:0"><span id="apiPlanFormTitle">Create API Plan</span></h3><input type="hidden" id="apiPlanId">
+          <div class="form-grid">
+            <div class="field"><label>Plan Name</label><input id="apiPlanName" placeholder="যেমন: Basic"></div>
+            <div class="field"><label>Price</label><input id="apiPlanPrice" placeholder="যেমন: ৳1000/month"></div>
+            <div class="field"><label>Monthly PDF Limit</label><input id="apiPlanMonthly" type="number" min="1" value="1000"></div>
+            <div class="field"><label>Rate Limit / minute</label><input id="apiPlanRate" type="number" min="1" value="30"></div>
+            <div class="field"><label>Max Source PDF Size (MB)</label><input id="apiPlanFileMb" type="number" min="1" max="50" value="15"></div>
+            <div class="field"><label>Status</label><select id="apiPlanActive"><option value="1">Active</option><option value="0">Inactive</option></select></div>
+          </div>
+          <button class="btn" onclick="saveApiPlan()">Plan Save করুন</button>
+          <div id="apiPlanStatus" class="status"></div>
+        </div>
+        <div class="table-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Plan</th><th>Price</th><th>Monthly Limit</th><th>Rate/min</th><th>Max PDF</th><th>Status</th><th>Action</th></tr></thead><tbody id="apiPlansBody"></tbody></table></div>
+        <div class="paybox" style="margin-top:18px">
+          <h3 style="margin-top:0">Create API Client</h3>
+          <p>Client তৈরি করার পর API key একবারই দেখানো হবে। Client-এর website-এর backend-এ key রাখতে হবে, frontend JavaScript-এ নয়।</p>
+          <div class="form-grid">
+            <div class="field"><label>Client Name</label><input id="apiClientName" placeholder="ABC Digital"></div>
+            <div class="field"><label>Email</label><input id="apiClientEmail" type="email"></div>
+            <div class="field"><label>Website</label><input id="apiClientWebsite" placeholder="https://client-site.com"></div>
+            <div class="field"><label>Plan</label><select id="apiClientPlan"></select></div>
+            <div class="field"><label>Expiry (optional)</label><input id="apiClientExpiry" type="datetime-local"></div>
+          </div>
+          <button class="btn" onclick="createApiClient()">Create API Client</button>
+          <div id="apiClientCreated" class="status hidden" style="margin-top:12px"></div>
+        </div>
+        <div class="table-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Client</th><th>Website</th><th>Plan</th><th>Used/Limit</th><th>API Key</th><th>Status</th><th>Action</th></tr></thead><tbody id="apiClientsBody"></tbody></table></div>
+      </section>
+
+      <div id="apiDocsCard" class="paybox hidden" style="margin-top:14px"><h3 style="margin-top:0">Client API Integration</h3><p>Client-এর backend থেকে source PDF upload করতে হবে। API key frontend-এ রাখবেন না।</p><pre style="white-space:pre-wrap;background:#0f2133;color:#eaf6ff;padding:14px;border-radius:10px;overflow:auto;font-size:12px">POST /api/v1/generate-pdf
+X-API-Key: mk_live_xxxxxxxxx
+Content-Type: multipart/form-data
+file=&lt;source.pdf&gt;</pre><p style="margin-top:12px">Response: সরাসরি generated PDF file। Header-এ <b>X-Request-ID</b> থাকবে।</p></div>
+      <section id="apiRequests" class="card page hidden">
+        <div class="modal-head"><div><h2 style="margin:0">API Request History</h2><p>Client-এর source PDF থেকে API দিয়ে তৈরি হওয়া request history।</p></div><button class="btn secondary" onclick="loadApiRequests()">Refresh</button></div>
+        <div class="row" style="margin:14px 0"><select id="apiRequestClientFilter"><option value="0">All Clients</option></select><button class="btn" onclick="loadApiRequests()">Filter</button></div>
+        <div class="table-wrap"><table class="tbl"><thead><tr><th>Time</th><th>Client</th><th>Request ID</th><th>NID</th><th>Name</th><th>DOB</th><th>Status</th><th>ms</th></tr></thead><tbody id="apiRequestsBody"></tbody></table></div>
+      </section>
+
       <section id="adminMessage" class="card page hidden"><h2>Admin Message</h2><p>এই message সব logged-in user-এর screen-এর উপর দিয়ে ধীরে scroll করবে।</p><div class="field"><label>Message</label><textarea id="adminAnnouncement" rows="4" maxlength="500" placeholder="যেমন: আজ PDF service রাত ১০টা পর্যন্ত চালু থাকবে।"></textarea></div><div class="row"><button class="btn" onclick="saveAnnouncement()">Message Save করুন</button><button class="btn secondary" onclick="loadAnnouncement(true)">Current Message</button></div><div id="announcementStatus" class="status"></div></section>
 
       <section id="adminPayments" class="card page hidden">
@@ -166,8 +208,8 @@ function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add(
 function toggleMenu(){const side=$("sideNav");side.classList.toggle("open");$("menuOverlay").classList.toggle("open")}
 function closeMenu(){$("sideNav")?.classList.remove("open");$("menuOverlay")?.classList.remove("open")}
 function navItem(label,id){const b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;loadForPage(id)};return b}
-function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Generate PDF","customerHome"),navItem("Make History","makeHistory"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"));}else{n.append(navItem("Generate PDF","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
-async function loadForPage(id){if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
+function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Generate PDF","customerHome"),navItem("Make History","makeHistory"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"),navItem("API Management","apiManagement"),navItem("API Request History","apiRequests"));}else{n.append(navItem("Generate PDF","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
+async function loadForPage(id){if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="apiManagement")await loadApiManagement();if(id==="apiRequests")await loadApiRequests();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
 async function login(e){e.preventDefault();$("loginError").classList.add("hidden");const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);try{const r=await fetch("/api/auth/login",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok){throw new Error(x.detail||"Login failed")}await boot()}catch(e){$("loginError").textContent=e.message;$("loginError").classList.remove("hidden")}}
 async function register(e){e.preventDefault();$("regError").classList.add("hidden");const fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);try{const r=await fetch("/api/auth/register",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Registration failed");await boot()}catch(e){$("regError").textContent=e.message;$("regError").classList.remove("hidden")}}
 async function boot(){try{const r=await fetch("/api/auth/me",{credentials:"same-origin"});if(!r.ok){showAuth("login");return}const x=await r.json();me=x.user;$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();const first=me.role==="admin"?"adminDashboard":"customerHome";show(first);$("title").textContent=me.role==="admin"?"Dashboard":"Generate PDF";await loadForPage(first);await loadAnnouncement(false)}catch(e){console.error(e)}}
@@ -204,6 +246,52 @@ async function loadStatus(){const r=await fetch("/api/customer/status",{credenti
 async function submitPayment(){const amount=$("payAmount").value;const trx=$("trxId").value.trim();if(!amount||Number(amount)<=0)return alert("Amount দিন");if(!trx)return alert("Transaction ID দিন");const fd=new FormData();fd.append("amount",amount);fd.append("transaction_id",trx);fd.append("sender_bkash",$("senderBkash").value.trim());fd.append("note",$("paymentNote").value.trim());const r=await fetch("/api/customer/payments",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("payAmount").value="";$("senderBkash").value="";$("trxId").value="";$("paymentNote").value="";await loadMyPayments()}}
 async function loadMyPayments(){const r=await fetch("/api/customer/payments",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("myPayments").innerHTML=(x.payments||[]).map(p=>`<tr><td>${esc(p.created_at)}</td><td>৳${esc(p.amount)}</td><td>${esc(p.credits)}</td><td>${esc(p.transaction_id)}</td><td>${p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>'}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো payment request নেই।</td></tr>'}
 async function loadHistory(){const r=await fetch("/api/customer/history",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("historyBody").innerHTML=(x.history||[]).map(h=>`<tr><td>${esc(h.id)}</td><td>${esc(h.nid)}</td><td>${esc(h.filename)}</td><td>${esc(h.charged)}</td><td>${esc(h.created_at)}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো history নেই।</td></tr>'}
+let apiPlans=[],apiClients=[];
+async function loadApiManagement(){
+  $("apiDocsCard")?.classList.remove("hidden");
+  const pr=await fetch("/api/admin/api/plans",{credentials:"same-origin"});
+  if(pr.ok){const x=await pr.json();apiPlans=x.plans||[];$("apiPlansBody").innerHTML=apiPlans.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.price)}</td><td>${esc(p.monthly_limit)}</td><td>${esc(p.rate_limit)}</td><td>${esc(p.max_file_mb)} MB</td><td>${p.active?'<span class="tag green">Active</span>':'<span class="tag red">Inactive</span>'}</td><td><button class="btn secondary" onclick="editApiPlan(${p.id})">Edit</button></td></tr>`).join("")||'<tr><td colspan="7" class="empty">কোনো API plan নেই।</td></tr>';const sel=$("apiClientPlan");sel.innerHTML=apiPlans.filter(p=>p.active).map(p=>`<option value="${p.id}">${esc(p.name)} — ${esc(p.price)} / ${esc(p.monthly_limit)} PDFs</option>`).join("")||'<option value="">No active plan</option>'}
+  await refreshApiClients();
+}
+function editApiPlan(id){const p=apiPlans.find(x=>Number(x.id)===Number(id));if(!p)return;$("apiPlanId").value=p.id;$("apiPlanName").value=p.name||"";$("apiPlanPrice").value=p.price||"";$("apiPlanMonthly").value=p.monthly_limit||1000;$("apiPlanRate").value=p.rate_limit||30;$("apiPlanFileMb").value=p.max_file_mb||15;$("apiPlanActive").value=p.active?"1":"0";$("apiPlanFormTitle").textContent="Edit API Plan";window.scrollTo({top:0,behavior:"smooth"})}
+async function saveApiPlan(){
+  const fd=new FormData();fd.append("plan_id",$("apiPlanId").value);fd.append("name",$("apiPlanName").value.trim());fd.append("price",$("apiPlanPrice").value.trim());fd.append("monthly_limit",$("apiPlanMonthly").value);fd.append("rate_limit",$("apiPlanRate").value);fd.append("max_file_mb",$("apiPlanFileMb").value);fd.append("active",$("apiPlanActive").value);
+  const r=await fetch("/api/admin/api/plans/save",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("apiPlanStatus").textContent=r.ok?"API plan saved.":(x.detail||"Plan save failed");if(r.ok){$("apiPlanId").value="";$("apiPlanName").value="";$("apiPlanPrice").value="";$("apiPlanFormTitle").textContent="Create API Plan";await loadApiManagement()}
+}
+function showFullApiKey(key, title="API key"){
+  const box=$("apiClientCreated");
+  box.classList.remove("hidden");
+  const safe=esc(key);
+  box.innerHTML=`<div><b>${esc(title)}</b></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+      <input id="fullApiKeyValue" value="${safe}" readonly style="flex:1;min-width:260px;font-family:monospace;font-size:13px">
+      <button class="btn secondary" type="button" onclick="copyFullApiKey()">Copy API Key</button>
+    </div>
+    <small style="display:block;margin-top:7px">এই full key এখনই client-কে দিন। Security-এর জন্য database-এ full key রাখা হয় না; পরে table-এ শুধু prefix দেখা যাবে। Regenerate করলে পুরোনো key সঙ্গে সঙ্গে কাজ করা বন্ধ করবে।</small>
+    <div id="apiKeyCopyStatus" style="margin-top:6px"></div>`;
+}
+async function copyFullApiKey(){
+  const input=$("fullApiKeyValue");if(!input)return;
+  const key=input.value;
+  try{await navigator.clipboard.writeText(key)}catch(_){input.select();document.execCommand("copy");}
+  const status=$("apiKeyCopyStatus");if(status)status.textContent="API key copied.";
+}
+async function createApiClient(){
+  const plan=$("apiClientPlan").value;if(!plan)return alert("Active API plan নির্বাচন করুন");
+  const fd=new FormData();fd.append("name",$("apiClientName").value.trim());fd.append("email",$("apiClientEmail").value.trim());fd.append("website",$("apiClientWebsite").value.trim());fd.append("plan_id",plan);fd.append("expires_at",$("apiClientExpiry").value?new Date($("apiClientExpiry").value).toISOString():"");
+  const r=await fetch("/api/admin/api/clients/create",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Client create failed");showFullApiKey(x.api_key,"API Client created — Full API Key");$("apiClientName").value="";$("apiClientEmail").value="";$("apiClientWebsite").value="";$("apiClientExpiry").value="";await refreshApiClients();await loadApiRequestClients();
+}
+async function refreshApiClients(){
+  const r=await fetch("/api/admin/api/clients",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();apiClients=x.clients||[];$("apiClientsBody").innerHTML=apiClients.map(c=>`<tr><td><b>${esc(c.name)}</b><br><small>${esc(c.email||"")}</small></td><td>${esc(c.website||"")}</td><td>${esc(c.plan_name)}</td><td>${esc(c.month_requests)}/${esc(c.monthly_limit)}</td><td><code>${esc(c.api_key_prefix)}</code></td><td>${c.active?'<span class="tag green">Active</span>':'<span class="tag red">Disabled</span>'}</td><td><div class="small-actions"><button class="btn secondary" onclick="toggleApiClient(${c.id},${c.active?0:1})">${c.active?'Disable':'Enable'}</button><button class="btn secondary" onclick="changeApiClientPlan(${c.id})">Plan</button><button class="btn secondary" onclick="regenerateApiKey(${c.id})">Regenerate</button></div></td></tr>`).join("")||'<tr><td colspan="7" class="empty">কোনো API client নেই।</td></tr>';
+}
+async function changeApiClientPlan(id){const c=apiClients.find(x=>Number(x.id)===Number(id));if(!c)return;const activePlans=apiPlans.filter(p=>p.active);const text=activePlans.map(p=>`${p.id}: ${p.name} (${p.price}, ${p.monthly_limit} PDFs)`).join("\n");const choice=prompt("Plan ID দিন:\n\n"+text,String(c.plan_id||""));if(!choice)return;const pid=Number(choice);if(!activePlans.some(p=>p.id===pid))return alert("Invalid plan ID");const fd=new FormData();fd.append("plan_id",String(pid));const r=await fetch(`/api/admin/api/clients/${id}/plan`,{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Plan change failed");await refreshApiClients()}
+async function toggleApiClient(id,active){const fd=new FormData();fd.append("active",active);const r=await fetch(`/api/admin/api/clients/${id}/status`,{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await refreshApiClients()}
+async function regenerateApiKey(id){if(!confirm("এই client-এর পুরোনো API key আর কাজ করবে না। Regenerate করবেন?"))return;const r=await fetch(`/api/admin/api/clients/${id}/regenerate`,{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");showFullApiKey(x.api_key,"New API Key — পুরোনো key আর কাজ করবে না");window.scrollTo({top:0,behavior:"smooth"});await refreshApiClients()}
+async function loadApiRequestClients(){const r=await fetch("/api/admin/api/clients",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const sel=$("apiRequestClientFilter");if(!sel)return;const current=sel.value;sel.innerHTML='<option value="0">All Clients</option>'+(x.clients||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");if([...sel.options].some(o=>o.value===current))sel.value=current}
+async function loadApiRequests(){
+  await loadApiRequestClients();const cid=$("apiRequestClientFilter")?.value||0;const r=await fetch(`/api/admin/api/requests?limit=1000&client_id=${encodeURIComponent(cid)}`,{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("apiRequestsBody").innerHTML=(x.requests||[]).map(h=>`<tr><td>${esc(formatDhakaTime(h.created_at))}</td><td>${esc(h.client_name)}</td><td><code>${esc(h.request_id)}</code></td><td>${esc(h.nid||"")}</td><td>${esc(h.person_name||"")}</td><td>${esc(h.dob||"")}</td><td>${h.status==='success'?'<span class="tag green">Success</span>':'<span class="tag red">Failed</span>'}</td><td>${esc(h.processing_ms||0)}</td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো API request নেই।</td></tr>';
+}
+
 async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();}
 
 function formatDhakaTime(value){if(!value)return "";const d=new Date(String(value).endsWith("Z")?value:value+"Z");if(Number.isNaN(d.getTime()))return String(value);return d.toLocaleString("en-GB",{timeZone:"Asia/Dhaka",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true});}

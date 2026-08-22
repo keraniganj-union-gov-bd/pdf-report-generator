@@ -15,7 +15,7 @@ body{overflow-x:hidden}button,input,select,textarea{font:inherit}button{cursor:p
 h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
 .field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#49637a}
 .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #d3e1ec;border-radius:10px;outline:none;background:#fff;color:var(--ink)}
-.field textarea{resize:vertical}.btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.success{background:var(--green)}.btn.full{width:100%;margin-top:5px}.btn:disabled{opacity:.65;cursor:not-allowed}
+.field textarea{resize:none;overflow:hidden;min-height:58px;line-height:1.6;box-sizing:border-box}.btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.success{background:var(--green)}.btn.full{width:100%;margin-top:5px}.btn:disabled{opacity:.65;cursor:not-allowed}
 .error{margin-top:10px;background:#fff1f1;border:1px solid #ffd8d8;color:#9f3434;border-radius:10px;padding:10px;font-size:12px}.linkbtn{background:none;border:0;color:var(--blue);font-weight:700;margin-top:12px}
 .app{min-height:100vh;display:flex}.side{width:240px;position:fixed;left:0;top:0;bottom:0;background:#fff;border-right:1px solid var(--line);z-index:50;overflow-y:auto;transition:transform .22s ease}.brand{padding:22px;background:linear-gradient(145deg,#1675e8,#55acf4);color:#fff}.brand b{font-size:18px}.brand small{display:block;margin-top:4px;opacity:.9}
 .nav{padding:14px}.nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;color:#526a80;font-weight:700;margin:3px 0}.nav button:hover,.nav button.active{background:var(--sky);color:var(--blue)}
@@ -152,7 +152,29 @@ async function boot(){try{const r=await fetch("/api/auth/me",{credentials:"same-
 async function logout(){await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin"});location.reload()}
 function setStatus(t){const el=$("cstatus");if(el)el.textContent=t}
 async function parseSource(){const f=$("source").files[0];if(!f)return setStatus("Source PDF নির্বাচন করুন।");const fd=new FormData();fd.append("file",f);setStatus("তথ্য বের করা হচ্ছে…");try{const r=await fetch("/api/customer/parse",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Parse failed");data=x.data;renderData();show("customerData");$("title").textContent="তথ্য যাচাই"}catch(e){setStatus(e.message||"Parse failed")}}
-function renderData(){const box=$("dataForm");box.innerHTML="";fields.forEach(([k,l])=>{const d=document.createElement("div");d.className="field"+(k.includes("address")?" wide":"");d.innerHTML=`<label>${esc(l)}</label><input data-k="${esc(k)}">`;const input=d.querySelector("input");input.value=String(data[k]||"");box.appendChild(d)})}
+function autoResizeAddress(el){
+  el.style.height="auto";
+  el.style.height=Math.max(el.scrollHeight,58)+"px";
+}
+function renderData(){
+  const box=$("dataForm");
+  box.innerHTML="";
+  fields.forEach(([k,l])=>{
+    const d=document.createElement("div");
+    const isAddress=k.includes("address");
+    d.className="field"+(isAddress?" wide":"");
+    d.innerHTML=isAddress
+      ? `<label>${esc(l)}</label><textarea data-k="${esc(k)}" rows="1" spellcheck="false"></textarea>`
+      : `<label>${esc(l)}</label><input data-k="${esc(k)}">`;
+    const input=d.querySelector("textarea,input");
+    input.value=String(data[k]||"");
+    if(isAddress){
+      input.addEventListener("input",()=>autoResizeAddress(input));
+      requestAnimationFrame(()=>autoResizeAddress(input));
+    }
+    box.appendChild(d);
+  });
+}
 function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
 function clearData(){data={};$("dataForm").innerHTML="";show("customerHome");$("title").textContent="Generate PDF"}
 async function generatePdf(){collect();if(!data.national_id)return alert("NID number required");const btn=$("generateBtn");const original=btn.innerHTML;btn.disabled=true;btn.classList.add("loading-btn");btn.innerHTML='<span class="spinner"></span> PDF তৈরি হচ্ছে…';setStatus("PDF তৈরি হচ্ছে…");try{const fd=new FormData();fd.append("data_json",JSON.stringify(data));const r=await fetch("/api/customer/generate",{method:"POST",body:fd,credentials:"same-origin"});if(!r.ok){let x={};try{x=await r.json()}catch(_){ }throw new Error(x.detail||"PDF generation failed")}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`V1_${String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")||"report"}.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);const balance=r.headers.get("X-PDF-Balance");if(balance!==null){$("balance").textContent=balance;$("customerBalanceCopy").textContent=balance}setStatus("PDF তৈরি হয়েছে এবং device download শুরু হয়েছে।");await loadHistory()}catch(e){alert(e.message||"PDF generation failed");setStatus("PDF তৈরি করা যায়নি।")}finally{btn.disabled=false;btn.classList.remove("loading-btn");btn.innerHTML=original}}
@@ -163,9 +185,24 @@ async function loadHistory(){const r=await fetch("/api/customer/history",{creden
 async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();}
 function showCustomers(){const box=$("customerListCard");box.classList.remove("hidden");refreshCustomers();box.scrollIntoView({behavior:"smooth",block:"start"})}
 window.customerCache={};
-async function refreshCustomers(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const customers=x.customers||[];customers.forEach(c=>window.customerCache[c.id]=c);$("customerCount").textContent=customers.length;$("customersTableBody").innerHTML=customers.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(c.full_name||"")}</td><td>${esc(c.email)}</td><td>${esc(c.mobile||"")}</td><td>৳${esc(c.credits||0)}</td><td>${c.active?'<span class="tag green">Active</span>':'<span class="tag red">Inactive</span>'}</td><td>${esc(c.created_at)}</td><td><button class="btn secondary" onclick="openCustomerModal(${Number(c.id)})">Edit</button></td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো customer নেই।</td></tr>'}
+async function refreshCustomers(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const customers=x.customers||[];customers.forEach(c=>window.customerCache[c.id]=c);$("customerCount").textContent=customers.length;$("customersTableBody").innerHTML=customers.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(c.full_name||"")}</td><td>${esc(c.email)}</td><td>${esc(c.mobile||"")}</td><td>৳${esc(c.credits||0)}</td><td>${c.active?'<span class="tag green">Active</span>':'<span class="tag red">Inactive</span>'}</td><td>${esc(c.created_at)}</td><td><div class="small-actions"><button class="btn secondary" onclick="openCustomerModal(${Number(c.id)})">Edit</button><button class="btn danger" onclick="deleteCustomerFromList(${Number(c.id)})">Delete</button></div></td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো customer নেই।</td></tr>'}
 function openCustomerModal(id){const c=window.customerCache?.[id];if(!c)return;$("editCustomerId").value=c.id;$("editFullName").value=c.full_name||"";$("editMobile").value=c.mobile||"";$("editEmail").value=c.email||"";$("editPassword").value="";$("editRole").value=c.role||"customer";$("editActive").value=c.active?"1":"0";$("editCustomerBalance").textContent=c.credits||0;$("editBalanceAmount").value="";$("editBalanceStatus").textContent="";$("customerModal").classList.remove("hidden")}
 function closeCustomerModal(){$("customerModal").classList.add("hidden")}
+async function deleteCustomerFromList(id){
+  if(!id)return;
+  const c=window.customerCache?.[id];
+  const name=c?.full_name||c?.email||("#"+id);
+  if(!confirm(`"${name}" customer account delete করতে চান?`))return;
+  const fd=new FormData();
+  fd.append("user_id",String(id));
+  try{
+    const r=await fetch("/api/admin/customer/delete",{method:"POST",body:fd,credentials:"same-origin"});
+    const x=await r.json();
+    if(!r.ok)throw new Error(x.detail||"Delete failed");
+    await refreshCustomers();
+    alert(x.message||"Customer deleted successfully");
+  }catch(e){alert(e.message||"Delete failed")}
+}
 async function saveCustomer(){const id=$("editCustomerId").value;const fd=new FormData();fd.append("user_id",id);fd.append("email",$("editEmail").value.trim());fd.append("full_name",$("editFullName").value.trim());fd.append("mobile",$("editMobile").value.trim());fd.append("role",$("editRole").value);fd.append("active",$("editActive").value);fd.append("new_password",$("editPassword").value);const r=await fetch("/api/admin/customer/update",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Customer update failed");closeCustomerModal();await refreshCustomers();alert(x.message||"Customer updated successfully")}
 async function adjustCustomerBalance(direction){const id=$("editCustomerId").value;const amount=Math.abs(Number($("editBalanceAmount").value||0));if(!id)return;if(!amount)return alert("Balance amount দিন");const fd=new FormData();fd.append("user_id",id);fd.append("amount",String(direction*amount));try{const r=await fetch("/api/admin/customer/balance",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Balance update failed");$("editCustomerBalance").textContent=x.balance;$("editBalanceAmount").value="";$("editBalanceStatus").textContent=x.message||"Balance updated successfully";await refreshCustomers()}catch(e){$("editBalanceStatus").textContent=e.message||"Balance update failed"}}
 async function deleteCurrentCustomer(){const id=$("editCustomerId").value;if(!id)return;if(!confirm("এই customer account delete করতে চান?"))return;const fd=new FormData();fd.append("user_id",id);const r=await fetch("/api/admin/customer/delete",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Delete failed");closeCustomerModal();await refreshCustomers();alert(x.message||"Customer deleted successfully")}

@@ -137,7 +137,7 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
             <div class="field"><label>Expiry (optional)</label><input id="apiClientExpiry" type="datetime-local"></div>
           </div>
           <button class="btn" onclick="createApiClient()">Create API Client</button>
-          <div id="apiClientCreated" class="status hidden"></div>
+          <div id="apiClientCreated" class="status hidden" style="margin-top:12px"></div>
         </div>
         <div class="table-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Client</th><th>Website</th><th>Plan</th><th>Used/Limit</th><th>API Key</th><th>Status</th><th>Action</th></tr></thead><tbody id="apiClientsBody"></tbody></table></div>
       </section>
@@ -258,17 +258,35 @@ async function saveApiPlan(){
   const fd=new FormData();fd.append("plan_id",$("apiPlanId").value);fd.append("name",$("apiPlanName").value.trim());fd.append("price",$("apiPlanPrice").value.trim());fd.append("monthly_limit",$("apiPlanMonthly").value);fd.append("rate_limit",$("apiPlanRate").value);fd.append("max_file_mb",$("apiPlanFileMb").value);fd.append("active",$("apiPlanActive").value);
   const r=await fetch("/api/admin/api/plans/save",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("apiPlanStatus").textContent=r.ok?"API plan saved.":(x.detail||"Plan save failed");if(r.ok){$("apiPlanId").value="";$("apiPlanName").value="";$("apiPlanPrice").value="";$("apiPlanFormTitle").textContent="Create API Plan";await loadApiManagement()}
 }
+function showFullApiKey(key, title="API key"){
+  const box=$("apiClientCreated");
+  box.classList.remove("hidden");
+  const safe=esc(key);
+  box.innerHTML=`<div><b>${esc(title)}</b></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+      <input id="fullApiKeyValue" value="${safe}" readonly style="flex:1;min-width:260px;font-family:monospace;font-size:13px">
+      <button class="btn secondary" type="button" onclick="copyFullApiKey()">Copy API Key</button>
+    </div>
+    <small style="display:block;margin-top:7px">এই full key এখনই client-কে দিন। Security-এর জন্য database-এ full key রাখা হয় না; পরে table-এ শুধু prefix দেখা যাবে। Regenerate করলে পুরোনো key সঙ্গে সঙ্গে কাজ করা বন্ধ করবে।</small>
+    <div id="apiKeyCopyStatus" style="margin-top:6px"></div>`;
+}
+async function copyFullApiKey(){
+  const input=$("fullApiKeyValue");if(!input)return;
+  const key=input.value;
+  try{await navigator.clipboard.writeText(key)}catch(_){input.select();document.execCommand("copy");}
+  const status=$("apiKeyCopyStatus");if(status)status.textContent="API key copied.";
+}
 async function createApiClient(){
   const plan=$("apiClientPlan").value;if(!plan)return alert("Active API plan নির্বাচন করুন");
   const fd=new FormData();fd.append("name",$("apiClientName").value.trim());fd.append("email",$("apiClientEmail").value.trim());fd.append("website",$("apiClientWebsite").value.trim());fd.append("plan_id",plan);fd.append("expires_at",$("apiClientExpiry").value?new Date($("apiClientExpiry").value).toISOString():"");
-  const r=await fetch("/api/admin/api/clients/create",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Client create failed");const box=$("apiClientCreated");box.classList.remove("hidden");box.innerHTML=`<b>API Client created.</b><br>এই API key এখনই copy করে client-কে দিন:<br><code style="word-break:break-all">${esc(x.api_key)}</code><br><small>পরে full key আর দেখানো হবে না।</small>`;$("apiClientName").value="";$("apiClientEmail").value="";$("apiClientWebsite").value="";$("apiClientExpiry").value="";await refreshApiClients();await loadApiRequestClients();
+  const r=await fetch("/api/admin/api/clients/create",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Client create failed");showFullApiKey(x.api_key,"API Client created — Full API Key");$("apiClientName").value="";$("apiClientEmail").value="";$("apiClientWebsite").value="";$("apiClientExpiry").value="";await refreshApiClients();await loadApiRequestClients();
 }
 async function refreshApiClients(){
   const r=await fetch("/api/admin/api/clients",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();apiClients=x.clients||[];$("apiClientsBody").innerHTML=apiClients.map(c=>`<tr><td><b>${esc(c.name)}</b><br><small>${esc(c.email||"")}</small></td><td>${esc(c.website||"")}</td><td>${esc(c.plan_name)}</td><td>${esc(c.month_requests)}/${esc(c.monthly_limit)}</td><td><code>${esc(c.api_key_prefix)}</code></td><td>${c.active?'<span class="tag green">Active</span>':'<span class="tag red">Disabled</span>'}</td><td><div class="small-actions"><button class="btn secondary" onclick="toggleApiClient(${c.id},${c.active?0:1})">${c.active?'Disable':'Enable'}</button><button class="btn secondary" onclick="changeApiClientPlan(${c.id})">Plan</button><button class="btn secondary" onclick="regenerateApiKey(${c.id})">Regenerate</button></div></td></tr>`).join("")||'<tr><td colspan="7" class="empty">কোনো API client নেই।</td></tr>';
 }
 async function changeApiClientPlan(id){const c=apiClients.find(x=>Number(x.id)===Number(id));if(!c)return;const activePlans=apiPlans.filter(p=>p.active);const text=activePlans.map(p=>`${p.id}: ${p.name} (${p.price}, ${p.monthly_limit} PDFs)`).join("\n");const choice=prompt("Plan ID দিন:\n\n"+text,String(c.plan_id||""));if(!choice)return;const pid=Number(choice);if(!activePlans.some(p=>p.id===pid))return alert("Invalid plan ID");const fd=new FormData();fd.append("plan_id",String(pid));const r=await fetch(`/api/admin/api/clients/${id}/plan`,{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Plan change failed");await refreshApiClients()}
 async function toggleApiClient(id,active){const fd=new FormData();fd.append("active",active);const r=await fetch(`/api/admin/api/clients/${id}/status`,{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await refreshApiClients()}
-async function regenerateApiKey(id){if(!confirm("এই client-এর পুরোনো API key আর কাজ করবে না। Regenerate করবেন?"))return;const r=await fetch(`/api/admin/api/clients/${id}/regenerate`,{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");alert("নতুন API key:\n\n"+x.api_key+"\n\nএখনই copy করে রাখুন। পরে full key আর দেখানো হবে না।");await refreshApiClients()}
+async function regenerateApiKey(id){if(!confirm("এই client-এর পুরোনো API key আর কাজ করবে না। Regenerate করবেন?"))return;const r=await fetch(`/api/admin/api/clients/${id}/regenerate`,{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");showFullApiKey(x.api_key,"New API Key — পুরোনো key আর কাজ করবে না");window.scrollTo({top:0,behavior:"smooth"});await refreshApiClients()}
 async function loadApiRequestClients(){const r=await fetch("/api/admin/api/clients",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const sel=$("apiRequestClientFilter");if(!sel)return;const current=sel.value;sel.innerHTML='<option value="0">All Clients</option>'+(x.clients||[]).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("");if([...sel.options].some(o=>o.value===current))sel.value=current}
 async function loadApiRequests(){
   await loadApiRequestClients();const cid=$("apiRequestClientFilter")?.value||0;const r=await fetch(`/api/admin/api/requests?limit=1000&client_id=${encodeURIComponent(cid)}`,{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("apiRequestsBody").innerHTML=(x.requests||[]).map(h=>`<tr><td>${esc(formatDhakaTime(h.created_at))}</td><td>${esc(h.client_name)}</td><td><code>${esc(h.request_id)}</code></td><td>${esc(h.nid||"")}</td><td>${esc(h.person_name||"")}</td><td>${esc(h.dob||"")}</td><td>${h.status==='success'?'<span class="tag green">Success</span>':'<span class="tag red">Failed</span>'}</td><td>${esc(h.processing_ms||0)}</td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো API request নেই।</td></tr>';

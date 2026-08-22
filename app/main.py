@@ -31,11 +31,12 @@ FONT_REGULAR = BASE / "fonts" / "NotoSansBengali-Regular.ttf"
 FONT_SEMIBOLD = BASE / "fonts" / "NotoSansBengali-SemiBold.ttf"
 DB = DATA / "dev.sqlite3"
 DATA.mkdir(exist_ok=True); GENERATED.mkdir(exist_ok=True)
+STATIC.mkdir(parents=True, exist_ok=True)
 BACKGROUNDS = DATA / "backgrounds"
 BACKGROUNDS.mkdir(exist_ok=True)
 
 app = FastAPI(title="Free PDF Report Generator V46")
-app.mount("/static", StaticFiles(directory=STATIC), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 
 FIELDS = [
     "national_id","pin","voter_no","voter_area","voter_at",

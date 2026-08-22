@@ -2311,3 +2311,27 @@ def download(filename:str):
     p=GENERATED/filename
     if not p.exists(): raise HTTPException(404,"File not found")
     return FileResponse(p, media_type="application/pdf", filename=p.name)
+@app.get("/api/admin/db-check")
+def admin_db_check(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+
+    with prod_engine.begin() as c:
+        total_users = c.execute(
+            text("SELECT COUNT(*) FROM web_users")
+        ).scalar() or 0
+
+        customers = c.execute(
+            text("SELECT COUNT(*) FROM web_users WHERE role='customer'")
+        ).scalar() or 0
+
+        admins = c.execute(
+            text("SELECT COUNT(*) FROM web_users WHERE role='admin'")
+        ).scalar() or 0
+
+    return {
+        "success": True,
+        "database": "production",
+        "total_users": total_users,
+        "customers": customers,
+        "admins": admins,
+    }

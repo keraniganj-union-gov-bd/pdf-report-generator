@@ -9,7 +9,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse
 from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
-import subprocess, time, shutil, platform, secrets, hashlib, hmac
+import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
 
 from fastapi import Cookie, Depends
@@ -74,14 +74,8 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if DATABASE_URL:
     PROD_DB_URL = DATABASE_URL
 
-    # Neon uses standard PostgreSQL. Keep PostgreSQL URLs on the PostgreSQL
-    # SQLAlchemy dialect; retain CockroachDB support for the old deployment.
-    if PROD_DB_URL.startswith("postgres://"):
-        PROD_DB_URL = "postgresql+psycopg2://" + PROD_DB_URL[len("postgres://"):]
-    elif PROD_DB_URL.startswith("postgresql://"):
-        PROD_DB_URL = "postgresql+psycopg2://" + PROD_DB_URL[len("postgresql://"):]
-    elif PROD_DB_URL.startswith("cockroachdb://"):
-        PROD_DB_URL = "cockroachdb+psycopg2://" + PROD_DB_URL[len("cockroachdb://"):]
+    if PROD_DB_URL.startswith("postgresql://"):
+        PROD_DB_URL = "cockroachdb+psycopg2://" + PROD_DB_URL[len("postgresql://"):]
 
 else:
     PROD_DB_URL = f"sqlite:///{(DATA / 'web.sqlite3').as_posix()}"
@@ -190,9 +184,9 @@ def prod_init():
         """))
         # Backward-compatible fields for payment requests created by older versions.
         for ddl in [
-            "ALTER TABLE web_payments ADD COLUMN IF NOT EXISTS sender_bkash VARCHAR(50)",
-            "ALTER TABLE web_payments ADD COLUMN IF NOT EXISTS note TEXT",
-            "ALTER TABLE web_payments ADD COLUMN IF NOT EXISTS verified_at VARCHAR(40)"
+            "ALTER TABLE web_payments ADD COLUMN sender_bkash VARCHAR(50)",
+            "ALTER TABLE web_payments ADD COLUMN note TEXT",
+            "ALTER TABLE web_payments ADD COLUMN verified_at VARCHAR(40)"
         ]:
             try:
                 c.execute(text(ddl))
@@ -200,14 +194,56 @@ def prod_init():
                 pass
         # Backward-compatible migration for older local web databases.
         for ddl in [
-            "ALTER TABLE web_generations ADD COLUMN IF NOT EXISTS pdf_data TEXT",
-            "ALTER TABLE web_generations ADD COLUMN IF NOT EXISTS person_name TEXT DEFAULT ''",
-            "ALTER TABLE web_generations ADD COLUMN IF NOT EXISTS dob VARCHAR(50) DEFAULT ''"
+            "ALTER TABLE web_generations ADD COLUMN pdf_data TEXT",
+            "ALTER TABLE web_generations ADD COLUMN person_name TEXT DEFAULT ''",
+            "ALTER TABLE web_generations ADD COLUMN dob VARCHAR(50) DEFAULT ''"
         ]:
             try:
                 c.execute(text(ddl))
             except Exception:
                 pass
+
+        c.execute(text("""
+            CREATE TABLE IF NOT EXISTS api_plans (
+                id INTEGER PRIMARY KEY,
+                name VARCHAR(100) UNIQUE NOT NULL,
+                price VARCHAR(50) NOT NULL DEFAULT '0',
+                monthly_limit INTEGER NOT NULL DEFAULT 1000,
+                rate_limit INTEGER NOT NULL DEFAULT 30,
+                max_file_mb INTEGER NOT NULL DEFAULT 15,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at VARCHAR(40) NOT NULL
+            )
+        """))
+        c.execute(text("""
+            CREATE TABLE IF NOT EXISTS api_clients (
+                id INTEGER PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) DEFAULT '',
+                website VARCHAR(500) DEFAULT '',
+                plan_id INTEGER NOT NULL,
+                api_key_hash VARCHAR(128) NOT NULL UNIQUE,
+                api_key_prefix VARCHAR(30) NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                expires_at VARCHAR(40) DEFAULT '',
+                created_at VARCHAR(40) NOT NULL
+            )
+        """))
+        c.execute(text("""
+            CREATE TABLE IF NOT EXISTS api_requests (
+                id INTEGER PRIMARY KEY,
+                client_id INTEGER NOT NULL,
+                request_id VARCHAR(80) UNIQUE NOT NULL,
+                status VARCHAR(20) NOT NULL,
+                filename VARCHAR(255) DEFAULT '',
+                nid VARCHAR(80) DEFAULT '',
+                person_name TEXT DEFAULT '',
+                dob VARCHAR(50) DEFAULT '',
+                processing_ms INTEGER DEFAULT 0,
+                created_at VARCHAR(40) NOT NULL
+            )
+        """))
+        c.execute(text("INSERT INTO api_plans(id,name,price,monthly_limit,rate_limit,max_file_mb,active,created_at) VALUES(1,'Basic','0',1000,30,15,1,:t) ON CONFLICT(id) DO NOTHING"), {"t": datetime.utcnow().isoformat()})
 
         # Seed IDs manually so SQLite and Cockroach both work without
         # database-specific autoincrement syntax.
@@ -1993,6 +2029,182 @@ async def _parse_source_upload(file: UploadFile):
     finally:
         try: os.remove(temp)
         except OSError: pass
+
+
+def _api_key_hash(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+def _new_api_key() -> str:
+    return "mk_live_" + secrets.token_urlsafe(32)
+
+def _api_client_from_request(api_key: str | None):
+    if not api_key:
+        raise HTTPException(401, "API key required")
+    api_key = api_key.strip()
+    if api_key.lower().startswith("bearer "):
+        api_key = api_key[7:].strip()
+    with prod_engine.begin() as c:
+        row = c.execute(text("""
+            SELECT c.*, p.name AS plan_name, p.price, p.monthly_limit, p.rate_limit, p.max_file_mb, p.active AS plan_active
+            FROM api_clients c JOIN api_plans p ON p.id=c.plan_id
+            WHERE c.api_key_hash=:h
+        """), {"h": _api_key_hash(api_key)}).mappings().first()
+    if not row or not row["active"] or not row["plan_active"]:
+        raise HTTPException(401, "Invalid or inactive API key")
+    if row["expires_at"]:
+        try:
+            if datetime.fromisoformat(str(row["expires_at"])) <= datetime.utcnow():
+                raise HTTPException(403, "API access has expired")
+        except ValueError:
+            pass
+    return dict(row)
+
+def _api_usage_counts(client_id: int):
+    now = datetime.utcnow()
+    month_prefix = now.strftime("%Y-%m")
+    month_start = month_prefix + "-01T00:00:00"
+    minute_start = (now - __import__('datetime').timedelta(minutes=1)).isoformat()
+    with prod_engine.begin() as c:
+        monthly = c.execute(text("SELECT COUNT(*) FROM api_requests WHERE client_id=:c AND status='success' AND created_at>=:s"), {"c":client_id,"s":month_start}).scalar() or 0
+        minute = c.execute(text("SELECT COUNT(*) FROM api_requests WHERE client_id=:c AND created_at>=:s"), {"c":client_id,"s":minute_start}).scalar() or 0
+    return int(monthly), int(minute)
+
+def _api_log(client_id: int, request_id: str, status: str, filename: str = "", nid: str = "", person_name: str = "", dob: str = "", processing_ms: int = 0):
+    with prod_engine.begin() as c:
+        rid = _next_id(c, "api_requests")
+        c.execute(text("""
+            INSERT INTO api_requests(id,client_id,request_id,status,filename,nid,person_name,dob,processing_ms,created_at)
+            VALUES(:id,:c,:r,:s,:f,:n,:pn,:dob,:ms,:t)
+        """), {"id":rid,"c":client_id,"r":request_id,"s":status,"f":filename,"n":nid,"pn":person_name,"dob":dob,"ms":processing_ms,"t":datetime.utcnow().isoformat()})
+
+@app.get("/api/admin/api/plans")
+def admin_api_plans(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        rows=c.execute(text("SELECT * FROM api_plans ORDER BY id DESC")).mappings().all()
+    return {"success":True,"plans":[dict(r) for r in rows]}
+
+@app.post("/api/admin/api/plans/save")
+def admin_api_plan_save(
+    plan_id: str = Form(""), name: str = Form(...), price: str = Form("0"), monthly_limit: int = Form(1000),
+    rate_limit: int = Form(30), max_file_mb: int = Form(15), active: int = Form(1),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+    name=name.strip()
+    if not name: raise HTTPException(400,"Plan name required")
+    if monthly_limit<1 or rate_limit<1 or max_file_mb<1 or max_file_mb>50: raise HTTPException(400,"Invalid plan limits")
+    with prod_engine.begin() as c:
+        if plan_id:
+            c.execute(text("UPDATE api_plans SET name=:n,price=:p,monthly_limit=:m,rate_limit=:r,max_file_mb=:f,active=:a WHERE id=:id"), {"n":name,"p":price.strip(),"m":monthly_limit,"r":rate_limit,"f":max_file_mb,"a":1 if active else 0,"id":int(plan_id)})
+            pid=int(plan_id)
+        else:
+            pid=_next_id(c,"api_plans")
+            try:
+                c.execute(text("INSERT INTO api_plans(id,name,price,monthly_limit,rate_limit,max_file_mb,active,created_at) VALUES(:id,:n,:p,:m,:r,:f,:a,:t)"), {"id":pid,"n":name,"p":price.strip(),"m":monthly_limit,"r":rate_limit,"f":max_file_mb,"a":1 if active else 0,"t":datetime.utcnow().isoformat()})
+            except Exception:
+                raise HTTPException(409,"Plan name already exists")
+    return {"success":True,"message":"API plan saved","id":pid}
+
+@app.get("/api/admin/api/clients")
+def admin_api_clients(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        rows=c.execute(text("""
+            SELECT c.id,c.name,c.email,c.website,c.api_key_prefix,c.active,c.expires_at,c.created_at,
+                   p.id AS plan_id,p.name AS plan_name,p.price,p.monthly_limit,p.rate_limit,
+                   (SELECT COUNT(*) FROM api_requests r WHERE r.client_id=c.id AND r.status='success') AS total_requests,
+                   (SELECT COUNT(*) FROM api_requests r WHERE r.client_id=c.id AND r.status='success' AND r.created_at>=:ms) AS month_requests
+            FROM api_clients c JOIN api_plans p ON p.id=c.plan_id ORDER BY c.id DESC
+        """), {"ms":datetime.utcnow().strftime("%Y-%m")+"-01T00:00:00"}).mappings().all()
+    return {"success":True,"clients":[dict(r) for r in rows]}
+
+@app.post("/api/admin/api/clients/create")
+def admin_api_client_create(
+    name: str = Form(...), email: str = Form(""), website: str = Form(""), plan_id: int = Form(...), expires_at: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        p=c.execute(text("SELECT id,active FROM api_plans WHERE id=:id"),{"id":plan_id}).mappings().first()
+        if not p or not p["active"]: raise HTTPException(400,"Invalid/inactive plan")
+        key=_new_api_key(); cid=_next_id(c,"api_clients")
+        c.execute(text("""
+            INSERT INTO api_clients(id,name,email,website,plan_id,api_key_hash,api_key_prefix,active,expires_at,created_at)
+            VALUES(:id,:n,:e,:w,:p,:h,:pref,1,:x,:t)
+        """), {"id":cid,"n":name.strip(),"e":email.strip().lower(),"w":website.strip(),"p":plan_id,"h":_api_key_hash(key),"pref":key[:16]+"…","x":expires_at.strip(),"t":datetime.utcnow().isoformat()})
+    return {"success":True,"message":"API client created","client_id":cid,"api_key":key}
+
+@app.post("/api/admin/api/clients/{client_id}/status")
+def admin_api_client_status(client_id:int, active:int=Form(...), web_session: str | None=Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c: c.execute(text("UPDATE api_clients SET active=:a WHERE id=:id"),{"a":1 if active else 0,"id":client_id})
+    return {"success":True,"message":"API client status updated"}
+
+@app.post("/api/admin/api/clients/{client_id}/plan")
+def admin_api_client_plan(client_id:int, plan_id:int=Form(...), web_session: str | None=Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        p=c.execute(text("SELECT id,active FROM api_plans WHERE id=:id"),{"id":plan_id}).mappings().first()
+        if not p or not p["active"]: raise HTTPException(400,"Invalid/inactive plan")
+        c.execute(text("UPDATE api_clients SET plan_id=:p WHERE id=:id"),{"p":plan_id,"id":client_id})
+    return {"success":True,"message":"API client plan updated"}
+
+@app.post("/api/admin/api/clients/{client_id}/regenerate")
+def admin_api_client_regenerate(client_id:int, web_session: str | None=Cookie(default=None)):
+    require_admin(web_session)
+    key=_new_api_key()
+    with prod_engine.begin() as c: c.execute(text("UPDATE api_clients SET api_key_hash=:h,api_key_prefix=:p WHERE id=:id"),{"h":_api_key_hash(key),"p":key[:16]+"…","id":client_id})
+    return {"success":True,"api_key":key}
+
+@app.get("/api/admin/api/requests")
+def admin_api_requests(web_session: str | None = Cookie(default=None), client_id: int = 0, limit: int = 500):
+    require_admin(web_session); limit=max(1,min(limit,1000))
+    where="" if not client_id else "WHERE r.client_id=:cid"
+    params={"limit":limit};
+    if client_id: params["cid"]=client_id
+    with prod_engine.begin() as c:
+        rows=c.execute(text(f"""
+            SELECT r.*, c.name AS client_name FROM api_requests r JOIN api_clients c ON c.id=r.client_id
+            {where} ORDER BY r.id DESC LIMIT :limit
+        """),params).mappings().all()
+    return {"success":True,"requests":[dict(r) for r in rows]}
+
+@app.get("/api/v1/status")
+def api_status(x_api_key: str | None = Header(default=None, alias="X-API-Key"), authorization: str | None = Header(default=None)):
+    client=_api_client_from_request(x_api_key or authorization)
+    monthly,minute=_api_usage_counts(client["id"])
+    return {"success":True,"client":client["name"],"plan":client["plan_name"],"monthly_limit":client["monthly_limit"],"monthly_used":monthly,"remaining":max(0,client["monthly_limit"]-monthly),"rate_limit_per_minute":client["rate_limit"],"requests_last_minute":minute}
+
+@app.post("/api/v1/generate-pdf")
+async def api_generate_pdf(file: UploadFile=File(...), x_api_key: str | None = Header(default=None, alias="X-API-Key"), authorization: str | None = Header(default=None)):
+    client=_api_client_from_request(x_api_key or authorization)
+    monthly,minute=_api_usage_counts(client["id"])
+    if monthly>=client["monthly_limit"]: raise HTTPException(429,"Monthly PDF limit reached")
+    if minute>=client["rate_limit"]: raise HTTPException(429,"Rate limit exceeded")
+    if not file.filename or not file.filename.lower().endswith(".pdf"): raise HTTPException(400,"Please upload a PDF source file")
+    max_bytes=int(client["max_file_mb"])*1024*1024
+    content=await file.read()
+    if len(content)>max_bytes: raise HTTPException(413,f"Source PDF must be {client['max_file_mb']} MB or smaller")
+    request_id="req_"+secrets.token_urlsafe(12)
+    started=_time.perf_counter()
+    try:
+        fd,temp=tempfile.mkstemp(suffix=".pdf"); os.close(fd); Path(temp).write_bytes(content)
+        doc=fitz.open(temp); pages=[p.get_text("text") for p in doc]; page1=pages[0] if pages else ""; all_text="\n".join(pages); doc.close()
+        d=parse_text(all_text,address_text=page1); d["photo_b64"]=extract_photo(temp); d["qr_b64"]=make_qr(d.get("name_en",""),d.get("national_id",""),d.get("dob",""))
+        out=make_pdf(d)
+        ms=int((_time.perf_counter()-started)*1000)
+        person_name=str(d.get("name_bn") or d.get("name_en") or "").strip(); dob=str(d.get("dob") or "").strip(); nid=str(d.get("national_id") or "").strip()
+        _api_log(client["id"],request_id,"success",out.name,nid,person_name,dob,ms)
+    except Exception as e:
+        ms=int((_time.perf_counter()-started)*1000)
+        try: _api_log(client["id"],request_id,"failed",processing_ms=ms)
+        except Exception: pass
+        raise
+    finally:
+        try: os.remove(temp)
+        except Exception: pass
+    return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"X-Request-ID":request_id,"X-API-Client":client["name"]},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
 
 @app.post("/api/customer/parse")
 async def customer_parse(file:UploadFile=File(...), web_session: str | None = Cookie(default=None)):

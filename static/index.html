@@ -13,12 +13,25 @@ button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
 .logo{width:52px;height:52px;border-radius:15px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:26px;margin-bottom:14px}
 h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}.field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#49637a}.field input,.field textarea{width:100%;padding:11px 12px;border:1px solid #d3e1ec;border-radius:10px;outline:none;box-sizing:border-box;font:inherit;color:inherit;background:#fff}
 .field input:focus,.field textarea:focus{border-color:#67adf0;box-shadow:0 0 0 3px #eaf6ff}
-.field textarea{display:block;min-height:46px;resize:none;overflow:hidden;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.field textarea{display:block;width:100%;min-height:46px;height:46px;resize:none;overflow:hidden;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;box-sizing:border-box}
 .btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.full{width:100%;margin-top:5px}
 .error{margin-top:10px;background:#fff1f1;border:1px solid #ffd8d8;color:#9f3434;border-radius:10px;padding:10px;font-size:12px}
 .app{min-height:100vh;display:flex}.side{width:240px;position:fixed;left:0;top:0;bottom:0;background:#fff;border-right:1px solid var(--line);z-index:20}.brand{padding:22px;background:linear-gradient(145deg,#1675e8,#55acf4);color:#fff}.brand b{font-size:18px}.brand small{display:block;margin-top:4px;opacity:.9}.nav{padding:14px}.nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;color:#526a80;font-weight:700;margin:3px 0}.nav button:hover,.nav button.active{background:var(--sky);color:var(--blue)}.main{margin-left:240px;flex:1}.top{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 28px;position:sticky;top:0;z-index:10}.top strong{font-size:17px}.badge{background:var(--sky);color:#175f9b;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:750}.content{max-width:1150px;margin:auto;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;margin-bottom:17px;box-shadow:0 8px 25px rgba(30,90,140,.07)}.card h2{font-size:18px;margin:0 0 4px}.card p{margin:0 0 16px;color:var(--muted);font-size:12px}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.row button{flex:0 0 auto}.status{margin-top:12px;padding:11px;border-radius:10px;background:#f2f9ff;border:1px solid #d8ebfa;font-size:12px;white-space:pre-wrap}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.form-grid .wide{grid-column:1/-1}.form-grid input{width:100%;padding:9px 11px;border:1px solid #d5e2ec;border-radius:9px}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf2f6}.table-wrap{overflow:auto}.tbl{width:100%;border-collapse:collapse;font-size:12px}.tbl th,.tbl td{padding:9px;border-bottom:1px solid #e6eef4;text-align:left;white-space:nowrap}.tbl th{background:#f5faff}.chip{background:var(--sky2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:800;color:#28576c}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#f8fcff;border:1px solid #dcecf7;border-radius:12px;padding:13px}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{font-size:19px}.preview{background:#f8fcff;border:1px dashed #bcd8eb;border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;max-height:260px;overflow:auto}
 @media(max-width:800px){.side{width:210px}.main{margin-left:210px}.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}}
-@media(max-width:650px){.side{display:none}.main{margin-left:0}.row{flex-direction:column;align-items:stretch}.top{padding:0 14px}.content{padding:12px}}
+.menu-toggle{display:none;border:1px solid #d4e7f5;background:#edf6fd;color:#225478;border-radius:10px;width:42px;height:42px;font-size:24px;line-height:1}
+.mobile-overlay{display:none}
+@media(max-width:650px){
+ .side{display:block;width:270px;left:-285px;transition:left .22s ease;box-shadow:8px 0 25px rgba(30,90,140,.14)}
+ .side.mobile-open{left:0}
+ .main{margin-left:0}
+ .row{flex-direction:column;align-items:stretch}
+ .top{padding:0 14px;gap:10px}
+ .top-left{display:flex;align-items:center;gap:10px}
+ .menu-toggle{display:block;flex:0 0 auto}
+ .mobile-overlay{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:15}
+ .mobile-overlay.show{display:block}
+ .content{padding:12px}
+}
 </style>
 </head>
 <body>
@@ -44,7 +57,14 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}.field
   <div style="padding:14px"><button class="btn secondary" style="width:100%" onclick="logout()">Logout</button></div>
 </aside>
 <main class="main">
-<header class="top"><strong id="title">Dashboard</strong><div><span class="badge">Balance: <b id="balance">0</b></span></div></header>
+<header class="top">
+  <div class="top-left">
+    <button class="menu-toggle" id="menuToggle" type="button" aria-label="Menu" onclick="toggleMobileMenu()">☰</button>
+    <strong id="title">Dashboard</strong>
+  </div>
+  <div><span class="badge">Balance: <b id="balance">0</b></span></div>
+</header>
+<div id="mobileOverlay" class="mobile-overlay" onclick="closeMobileMenu()"></div>
 <div class="content">
 
 <section id="customerHome" class="card page">
@@ -104,7 +124,20 @@ const fields=[
 ];
 function $(id){return document.getElementById(id)}
 function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));$(id).classList.remove("hidden")}
-function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="customers")loadCustomers();if(id==="background")loadBg();if(id==="pricing")loadAdmin();};return b}
+function toggleMobileMenu(){
+ const side=document.querySelector(".side");
+ const overlay=$("mobileOverlay");
+ if(!side)return;
+ side.classList.toggle("mobile-open");
+ overlay.classList.toggle("show");
+}
+function closeMobileMenu(){
+ const side=document.querySelector(".side");
+ const overlay=$("mobileOverlay");
+ if(side)side.classList.remove("mobile-open");
+ if(overlay)overlay.classList.remove("show");
+}
+function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);closeMobileMenu();document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="customers")loadCustomers();if(id==="background")loadBg();if(id==="pricing")loadAdmin();};return b}
 function buildNav(){
  const n=$("nav");n.innerHTML="";
  if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Customers","customers"),navItem("Default Background","background"),navItem("Pricing","pricing"))}
@@ -132,7 +165,7 @@ async function parseSource(){
 }
 function autoResizeAddress(el){
  if(!el)return;
- el.style.height="auto";
+ el.style.height="46px";
  el.style.height=Math.max(el.scrollHeight,46)+"px";
 }
 function renderData(){
@@ -148,7 +181,11 @@ function renderData(){
    d.innerHTML=`<label>${l}</label>${control}`;
    box.appendChild(d);
  });
- box.querySelectorAll("textarea[data-k$='address']").forEach(autoResizeAddress);
+ box.querySelectorAll("textarea[data-k$='address']").forEach(el=>{
+ autoResizeAddress(el);
+ requestAnimationFrame(()=>autoResizeAddress(el));
+ setTimeout(()=>autoResizeAddress(el),50);
+});
 }
 function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
 function clearData(){data={};$("dataForm").innerHTML="";show("customerHome")}
@@ -193,6 +230,9 @@ async function savePrice(){
 boot();
 document.addEventListener("input",e=>{
  if(e.target.matches("textarea[data-k$='address']")) autoResizeAddress(e.target);
+});
+window.addEventListener("load",()=>{
+ document.querySelectorAll("textarea[data-k$='address']").forEach(autoResizeAddress);
 });
 </script>
 </body></html>

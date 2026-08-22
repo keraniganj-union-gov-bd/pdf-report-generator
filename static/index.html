@@ -2,190 +2,197 @@
 <html lang="bn">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PDF Report Generator</title>
 <style>
-:root{--blue:#1677e8;--sky:#eaf6ff;--ink:#17344f;--muted:#6e8194;--line:#dce8f2;--red:#c94b4b;--green:#198754;--white:#fff}
-*{box-sizing:border-box}
-html,body{margin:0;min-height:100%;font-family:"Segoe UI","Noto Sans Bengali",Arial,sans-serif;background:#f5faff;color:var(--ink)}
-body{overflow-x:hidden}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+:root{--blue:#1677e8;--sky:#eaf6ff;--sky2:#c2e4eb;--ink:#17344f;--muted:#6e8194;--line:#dce8f2;--white:#fff;--red:#c94b4b}
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI","Noto Sans Bengali",Arial,sans-serif;background:#f5faff;color:var(--ink)}
+button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
 .login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#eaf6ff,#fff)}
-.login-card{width:min(450px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 12px 40px #1e5a8c1f}
+.login-card{width:min(420px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 12px 40px rgba(30,90,140,.12)}
 .logo{width:52px;height:52px;border-radius:15px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:26px;margin-bottom:14px}
-h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
-.field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#49637a}
-.field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #d3e1ec;border-radius:10px;outline:none;background:#fff;color:var(--ink)}
-.field textarea{resize:vertical}.btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.success{background:var(--green)}.btn.full{width:100%;margin-top:5px}.btn:disabled{opacity:.65;cursor:not-allowed}
-.error{margin-top:10px;background:#fff1f1;border:1px solid #ffd8d8;color:#9f3434;border-radius:10px;padding:10px;font-size:12px}.linkbtn{background:none;border:0;color:var(--blue);font-weight:700;margin-top:12px}
-.app{min-height:100vh;display:flex}.side{width:240px;position:fixed;left:0;top:0;bottom:0;background:#fff;border-right:1px solid var(--line);z-index:50;overflow-y:auto;transition:transform .22s ease}.brand{padding:22px;background:linear-gradient(145deg,#1675e8,#55acf4);color:#fff}.brand b{font-size:18px}.brand small{display:block;margin-top:4px;opacity:.9}
-.nav{padding:14px}.nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;color:#526a80;font-weight:700;margin:3px 0}.nav button:hover,.nav button.active{background:var(--sky);color:var(--blue)}
-.main{margin-left:240px;flex:1;min-width:0}.top{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 28px;position:sticky;top:0;z-index:40}.top-left{display:flex;align-items:center;gap:10px;min-width:0}.top-left strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{background:var(--sky);color:#175f9b;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:750;white-space:nowrap}.top-spacer{flex:1}
-.mobile-menu-btn{display:none;border:1px solid #d4e7f5;background:#edf6fd;color:#225478;border-radius:10px;width:42px;height:40px;font-size:22px;line-height:1}.menu-overlay{display:none;position:fixed;inset:0;background:#17344f55;z-index:45}
-.announcement{display:none;overflow:hidden;background:#fff7d6;border-bottom:1px solid #f1df9d;color:#755900;white-space:nowrap}.announcement.show{display:block}.announcement-track{display:inline-block;padding:8px 0 8px 100%;animation:announcementScroll 42s linear infinite;will-change:transform;font-size:13px;font-weight:650}.announcement:hover .announcement-track{animation-play-state:paused}@keyframes announcementScroll{from{transform:translateX(100%)}to{transform:translateX(-100%)}}
-.content{max-width:1150px;margin:auto;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;margin-bottom:17px;box-shadow:0 8px 25px #1e5a8c12}.card h2{font-size:18px;margin:0 0 4px}.card p{margin:0 0 16px;color:var(--muted);font-size:12px}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.row button{flex:0 0 auto}.status{margin-top:12px;padding:11px;border-radius:10px;background:#f2f9ff;border:1px solid #d8ebfa;font-size:12px;white-space:pre-wrap}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.wide{grid-column:1/-1}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf2f6}.table-wrap{overflow:auto;-webkit-overflow-scrolling:touch}.tbl{width:100%;border-collapse:collapse;font-size:12px}.tbl th,.tbl td{padding:9px;border-bottom:1px solid #e6eef4;text-align:left;white-space:nowrap}.tbl th{background:#f5faff}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#f8fcff;border:1px solid #dcecf7;border-radius:12px;padding:15px;cursor:default}.stat.clickable{cursor:pointer}.stat.clickable:hover{border-color:#67adf0;background:#f4faff}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{font-size:21px;display:block;margin-top:3px}.paybox{border:1px dashed #9dcbea;border-radius:14px;padding:16px;background:#f8fcff;margin:14px 0}.paybox strong{font-size:20px;color:#1677e8}.package{border:1px solid #dce8f2;border-radius:10px;padding:12px;margin:7px 0;cursor:pointer}.package:hover{border-color:#67adf0;background:#f5faff}.tag{display:inline-block;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:700}.tag.green{background:#eaf8f0;color:#167544}.tag.red{background:#fff0f0;color:#9f3434}.tag.yellow{background:#fff7d6;color:#755900}.empty{padding:18px;text-align:center;color:var(--muted)}.small-actions{display:flex;gap:6px;flex-wrap:wrap}.modal-backdrop{position:fixed;inset:0;background:#17344f55;z-index:70;display:grid;place-items:center;padding:15px}.modal{width:min(760px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:18px;padding:20px;border:1px solid var(--line);box-shadow:0 18px 55px #17344f33}.modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.close-btn{border:0;background:#edf6fd;color:#225478;border-radius:9px;width:38px;height:38px;font-size:20px}
-.loading-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px}.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-@media(max-width:800px){.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}.side{width:230px}.main{margin-left:230px}}
-@media(max-width:650px){.side{transform:translateX(-105%);width:min(82vw,290px);box-shadow:12px 0 30px #17344f22}.side.open{transform:translateX(0)}.main{margin-left:0}.menu-overlay.open{display:block}.mobile-menu-btn{display:inline-grid;place-items:center}.top{height:62px;padding:0 12px}.content{padding:12px}.row{flex-direction:column;align-items:stretch}.row button{width:100%}.actions{flex-direction:column}.actions button{width:100%}.grid3{gap:8px}.card{padding:15px}.brand{padding:18px}.announcement-track{animation-duration:55s}.tbl th,.tbl td{padding:8px 7px}.badge{font-size:11px;padding:6px 9px}.paybox{padding:13px}}
+h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}.field{margin:13px 0}.field label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#49637a}.field input,.field textarea{width:100%;padding:11px 12px;border:1px solid #d3e1ec;border-radius:10px;outline:none;box-sizing:border-box;font:inherit;color:inherit;background:#fff}
+.field input:focus,.field textarea:focus{border-color:#67adf0;box-shadow:0 0 0 3px #eaf6ff}
+.field textarea{display:block;min-height:46px;resize:none;overflow:hidden;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.btn{border:0;border-radius:10px;padding:10px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.secondary{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}.btn.danger{background:#fff1f1;color:var(--red);border:1px solid #ffd8d8}.btn.full{width:100%;margin-top:5px}
+.error{margin-top:10px;background:#fff1f1;border:1px solid #ffd8d8;color:#9f3434;border-radius:10px;padding:10px;font-size:12px}
+.app{min-height:100vh;display:flex}.side{width:240px;position:fixed;left:0;top:0;bottom:0;background:#fff;border-right:1px solid var(--line);z-index:20}.brand{padding:22px;background:linear-gradient(145deg,#1675e8,#55acf4);color:#fff}.brand b{font-size:18px}.brand small{display:block;margin-top:4px;opacity:.9}.nav{padding:14px}.nav button{display:block;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;color:#526a80;font-weight:700;margin:3px 0}.nav button:hover,.nav button.active{background:var(--sky);color:var(--blue)}.main{margin-left:240px;flex:1}.top{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;padding:0 28px;position:sticky;top:0;z-index:10}.top strong{font-size:17px}.badge{background:var(--sky);color:#175f9b;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:750}.content{max-width:1150px;margin:auto;padding:24px}.card{background:#fff;border:1px solid var(--line);border-radius:17px;padding:20px;margin-bottom:17px;box-shadow:0 8px 25px rgba(30,90,140,.07)}.card h2{font-size:18px;margin:0 0 4px}.card p{margin:0 0 16px;color:var(--muted);font-size:12px}.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}.row button{flex:0 0 auto}.status{margin-top:12px;padding:11px;border-radius:10px;background:#f2f9ff;border:1px solid #d8ebfa;font-size:12px;white-space:pre-wrap}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.form-grid .wide{grid-column:1/-1}.form-grid input{width:100%;padding:9px 11px;border:1px solid #d5e2ec;border-radius:9px}.actions{display:flex;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid #edf2f6}.table-wrap{overflow:auto}.tbl{width:100%;border-collapse:collapse;font-size:12px}.tbl th,.tbl td{padding:9px;border-bottom:1px solid #e6eef4;text-align:left;white-space:nowrap}.tbl th{background:#f5faff}.chip{background:var(--sky2);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:800;color:#28576c}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.stat{background:#f8fcff;border:1px solid #dcecf7;border-radius:12px;padding:13px}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{font-size:19px}.preview{background:#f8fcff;border:1px dashed #bcd8eb;border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;max-height:260px;overflow:auto}
+@media(max-width:800px){.side{width:210px}.main{margin-left:210px}.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}}
+@media(max-width:650px){.side{display:none}.main{margin-left:0}.row{flex-direction:column;align-items:stretch}.top{padding:0 14px}.content{padding:12px}}
 </style>
 </head>
 <body>
-
 <div id="login" class="login">
   <div class="login-card">
-    <div class="logo">▣</div><h1>PDF Report Generator</h1><div class="muted">Customer / Admin Login</div>
-    <form id="loginForm">
-      <div class="field"><label>Email</label><input id="email" type="email" autocomplete="username" required></div>
-      <div class="field"><label>Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <div class="logo">▣</div>
+    <h1>PDF Report Generator</h1>
+    <div class="muted">Customer / Admin Login</div>
+    <form onsubmit="login(event)">
+      <div class="field"><label>Email</label><input id="email" type="email" required></div>
+      <div class="field"><label>Password</label><input id="password" type="password" required></div>
       <button class="btn full">Login</button>
     </form>
     <div id="loginError" class="error hidden"></div>
-    <button class="linkbtn" type="button" onclick="showAuth('register')">Create New Customer Account</button>
-  </div>
-</div>
-
-<div id="register" class="login hidden">
-  <div class="login-card">
-    <div class="logo">+</div><h1>Create Customer Account</h1><div class="muted">নতুন customer account তৈরি করুন</div>
-    <form id="registerForm">
-      <div class="field"><label>Full Name</label><input id="regName" required></div>
-      <div class="field"><label>Email</label><input id="regEmail" type="email" required></div>
-      <div class="field"><label>Mobile Number</label><input id="regMobile" required></div>
-      <div class="field"><label>Password</label><input id="regPassword" type="password" minlength="8" required></div>
-      <div class="field"><label>Confirm Password</label><input id="regConfirm" type="password" minlength="8" required></div>
-      <button class="btn full">Create Account</button>
-    </form>
-    <div id="regError" class="error hidden"></div>
-    <button class="linkbtn" type="button" onclick="showAuth('login')">Already have an account? Login</button>
+    <div class="muted" style="margin-top:14px">Customer account Admin panel থেকে তৈরি করা হবে।</div>
   </div>
 </div>
 
 <div id="app" class="app hidden">
-  <aside class="side" id="sideNav">
-    <div class="brand"><b>PDF Report Generator</b><small>Web Version · Customer/Admin</small></div>
-    <div class="nav" id="nav"></div>
-    <div style="padding:14px"><button class="btn secondary" style="width:100%" onclick="logout()">Logout</button></div>
-  </aside>
-  <div class="menu-overlay" id="menuOverlay" onclick="closeMenu()"></div>
+<aside class="side">
+  <div class="brand"><b>PDF Report Generator</b><small>Web Version · V59</small></div>
+  <div class="nav" id="nav"></div>
+  <div style="padding:14px"><button class="btn secondary" style="width:100%" onclick="logout()">Logout</button></div>
+</aside>
+<main class="main">
+<header class="top"><strong id="title">Dashboard</strong><div><span class="badge">Balance: <b id="balance">0</b></span></div></header>
+<div class="content">
 
-  <main class="main">
-    <header class="top">
-      <div class="top-left"><button class="mobile-menu-btn" type="button" aria-label="Open menu" onclick="toggleMenu()">☰</button><strong id="title">Dashboard</strong></div>
-      <div class="top-spacer"></div><span class="badge">Balance: <b id="balance">0</b></span>
-    </header>
-    <div id="announcementBar" class="announcement"><div id="announcementTrack" class="announcement-track"></div></div>
+<section id="customerHome" class="card page">
+  <h2>PDF তৈরি করুন</h2><p>Customer শুধু Source PDF upload করবে। Default Background system নিজে ব্যবহার করবে।</p>
+  <div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div>
+  <div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div>
+</section>
 
-    <div class="content">
-      <section id="adminDashboard" class="card page hidden">
-        <h2>Admin Dashboard</h2><p>প্রধান dashboard থেকেই customer list দেখা, edit এবং delete করতে পারবেন।</p>
-        <div class="grid3">
-          <div class="stat clickable" onclick="showCustomers()"><small>Total Customers</small><b id="customerCount">0</b><span class="muted">Click করে সব customer দেখুন</span></div>
-          <div class="stat"><small>PDF Price</small><b id="adminPrice">0</b></div>
-          <div class="stat"><small>Default Background</small><b id="backgroundName">None</b></div>
-        </div>
-        <div id="customerListCard" class="paybox hidden">
-          <div class="modal-head"><div><h3 style="margin:0">All Customers</h3><p class="muted" style="margin:4px 0 0">Edit/Delete করতে Action ব্যবহার করুন।</p></div><button class="btn secondary" onclick="refreshCustomers()">Refresh</button></div>
-          <div class="table-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Balance</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody id="customersTableBody"></tbody></table></div>
-        </div>
-      </section>
+<section id="customerData" class="card page hidden">
+  <h2>তথ্য যাচাই</h2><p>Source PDF থেকে পাওয়া তথ্য এখানে দেখা যাবে। PDF তৈরি করার আগে প্রয়োজন হলে edit করতে পারবেন।</p>
+  <div id="dataForm" class="form-grid"></div>
+  <div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div>
+</section>
 
-      <section id="adminMessage" class="card page hidden"><h2>Admin Message</h2><p>এই message সব logged-in user-এর screen-এর উপর দিয়ে ধীরে scroll করবে।</p><div class="field"><label>Message</label><textarea id="adminAnnouncement" rows="4" maxlength="500" placeholder="যেমন: আজ PDF service রাত ১০টা পর্যন্ত চালু থাকবে।"></textarea></div><div class="row"><button class="btn" onclick="saveAnnouncement()">Message Save করুন</button><button class="btn secondary" onclick="loadAnnouncement(true)">Current Message</button></div><div id="announcementStatus" class="status"></div></section>
+<section id="history" class="card page hidden">
+  <h2>Download History</h2><p>আপনার তৈরি করা শেষ 100টি report।</p>
+  <div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>NID</th><th>File</th><th>Charge</th><th>Date</th><th></th></tr></thead><tbody id="historyBody"></tbody></table></div>
+</section>
 
-      <section id="adminPayments" class="card page hidden">
-        <h2>bKash Settings & Payments</h2><p>নম্বর পরিবর্তন করতে পারবেন। নিচের payment requests নিজে যাচাই করে Approve করলে তবেই balance যোগ হবে।</p>
-        <div class="paybox">
-          <div class="form-grid">
-            <div class="field"><label>Admin bKash Number</label><input id="adminBkashNumber" type="text" inputmode="numeric" placeholder="01XXXXXXXXX"></div>
-            <div class="field"><label>PDF Price (৳)</label><input id="adminWebPrice" type="number" min="0"></div>
-          </div>
-          <button class="btn" onclick="savePaymentSettings()">Settings Save করুন</button><div id="paymentSettingsStatus" class="status"></div>
-        </div>
-        <div class="grid3">
-          <div class="stat clickable" onclick="filterPayments('pending')"><small>Pending Requests</small><b id="pendingCount">0</b></div>
-          <div class="stat"><small>Approved</small><b id="approvedCount">0</b></div>
-          <div class="stat"><small>Rejected</small><b id="rejectedCount">0</b></div>
-        </div>
-        <div class="row" style="margin:14px 0"><button class="btn secondary" onclick="filterPayments('all')">All</button><button class="btn secondary" onclick="filterPayments('pending')">Pending</button><button class="btn secondary" onclick="filterPayments('approved')">Approved</button><button class="btn secondary" onclick="filterPayments('rejected')">Rejected</button></div>
-        <div class="table-wrap"><table class="tbl"><thead><tr><th>Customer</th><th>Amount</th><th>From bKash</th><th>Transaction</th><th>Note</th><th>Status</th><th>Action</th></tr></thead><tbody id="paymentBody"></tbody></table></div>
-      </section>
+<section id="adminDashboard" class="card page hidden">
+  <h2>Admin Dashboard</h2><p>Customer, balance, pricing এবং default background manage করুন।</p>
+  <div class="grid3"><div class="stat"><small>Customers</small><b id="customerCount">0</b></div><div class="stat"><small>PDF Price</small><b id="adminPrice">0</b></div><div class="stat"><small>Default Background</small><b id="bgName">None</b></div></div>
+</section>
 
-      <section id="background" class="card page hidden"><h2>Default Background</h2><p>Admin একবার background সেট করবে। PDF generation-এর সময় এটি cache করা হবে।</p><div class="row"><input id="bg" type="file" accept=".jpg,.jpeg,.png,.webp"><button class="btn" onclick="setBackground()">Upload & Set Default</button></div><div id="bgStatus" class="status"></div></section>
-      <section id="pricing" class="card page hidden"><h2>Pricing</h2><p>Customer প্রতি PDF generation-এর charge।</p><div class="row"><input id="price" type="number" min="0"><button class="btn" onclick="savePrice()">Save Price</button></div></section>
-
-      <section id="customerHome" class="card page hidden"><h2>সাইন কপি আপলোড করে তথ্য যাচাই বাটনে ক্লিক করুন</h2><p>Source PDF upload করুন। তারপর তথ্য যাচাই করে PDF তৈরি করুন।</p><div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div><div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div></section>
-      <section id="customerData" class="card page hidden"><h2>তথ্য যাচাই</h2><p>PDF তৈরি করার আগে প্রয়োজন হলে তথ্য edit করুন।</p><div id="dataForm" class="form-grid"></div><div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button id="generateBtn" class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div></section>
-
-      <section id="buyCredits" class="card page hidden">
-        <h2>Add Balance — bKash</h2><div class="row"><div class="paybox" style="flex:1"><h3>bKash Personal Number (Send Money)</h3><div style="font-size:28px;font-weight:700;margin:12px 0"><span id="bkashNumber">Loading...</span></div><p class="muted">উপরের bKash Personal নম্বরে <b>Send Money</b> করুন। Transaction ID দিয়ে request জমা দিন। Admin approve করার পর Balance যোগ হবে।</p><p>বর্তমান Balance: <strong>৳<span id="customerBalanceCopy">0</span></strong></p></div>
-        <div class="paybox" style="flex:1"><h3>Balance Request</h3><div class="field"><label>Amount (৳)</label><input id="payAmount" type="number" min="1" placeholder="যেমন: 100"></div><div class="field"><label>যে bKash নম্বর থেকে পাঠিয়েছেন</label><input id="senderBkash" type="text" inputmode="numeric" placeholder="01XXXXXXXXX"></div><div class="field"><label>Transaction ID</label><input id="trxId" type="text" placeholder="যেমন: 8A7B6C9D"></div><div class="field"><label>Note (ঐচ্ছিক)</label><textarea id="paymentNote" rows="3" placeholder="প্রয়োজনে কিছু লিখুন"></textarea></div><button class="btn" onclick="submitPayment()">Request Submit করুন</button><div id="payStatus" class="status"></div></div></div>
-      </section>
-      <section id="paymentHistory" class="card page hidden"><h2>Payment History</h2><div class="table-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Amount</th><th>Credits</th><th>Transaction ID</th><th>Status</th></tr></thead><tbody id="myPayments"></tbody></table></div></section>
-      <section id="history" class="card page hidden"><h2>Recent 5 Generations</h2><p class="muted">শুধু সর্বশেষ ৫টি generation-এর তথ্য রাখা হয়।</p><div class="table-wrap"><table class="tbl"><thead><tr><th>ID</th><th>NID</th><th>File</th><th>Charge</th><th>Date</th></tr></thead><tbody id="historyBody"></tbody></table></div></section>
-      <section id="profile" class="card page hidden"><h2>My Account</h2><p>আপনার নাম, mobile এবং password পরিবর্তন করতে পারবেন।</p><div class="form-grid"><div class="field"><label>Email</label><input id="profileEmail" readonly></div><div class="field"><label>Full Name</label><input id="profileName"></div><div class="field"><label>Mobile</label><input id="profileMobile"></div><div class="field"><label>New Password (ঐচ্ছিক)</label><input id="profilePassword" type="password"></div></div><button class="btn" onclick="saveProfile()">Profile Save করুন</button><div id="profileStatus" class="status"></div></section>
-    </div>
-  </main>
-</div>
-
-<div id="customerModal" class="modal-backdrop hidden">
-  <div class="modal">
-    <div class="modal-head"><div><h3 id="customerModalTitle" style="margin:0">Edit Customer</h3><p class="muted" style="margin:4px 0">Customer account update করুন।</p></div><button class="close-btn" onclick="closeCustomerModal()">×</button></div>
-    <input type="hidden" id="editCustomerId">
-    <div class="form-grid" style="margin-top:12px"><div class="field"><label>Full Name</label><input id="editFullName"></div><div class="field"><label>Mobile</label><input id="editMobile"></div><div class="field"><label>Email</label><input id="editEmail" type="email"></div><div class="field"><label>New Password (blank = unchanged)</label><input id="editPassword" type="password"></div><div class="field"><label>Role</label><select id="editRole"><option value="customer">Customer</option><option value="admin">Admin</option></select></div><div class="field"><label>Status</label><select id="editActive"><option value="1">Active</option><option value="0">Inactive</option></select></div></div>
-    <div class="paybox" style="margin-top:14px"><div class="modal-head"><div><b>Current Balance: ৳<span id="editCustomerBalance">0</span></b><p class="muted" style="margin:4px 0 0">Positive amount = Add, negative amount = Deduct.</p></div></div><div class="row" style="margin-top:10px"><input id="editBalanceAmount" type="number" step="1" min="1" placeholder="Amount (৳)" style="flex:1"><button class="btn" type="button" onclick="adjustCustomerBalance(1)">Add Balance</button><button class="btn danger" type="button" onclick="adjustCustomerBalance(-1)">Deduct Balance</button></div><div id="editBalanceStatus" class="status"></div></div><div class="actions"><button class="btn" onclick="saveCustomer()">Save Customer</button><button class="btn danger" onclick="deleteCurrentCustomer()">Delete Customer</button></div>
+<section id="customers" class="card page hidden">
+  <h2>Customer Management</h2><p>নতুন customer account তৈরি এবং balance manage করুন।</p>
+  <div class="form-grid">
+    <div class="field"><label>Customer Email</label><input id="newEmail" type="email"></div>
+    <div class="field"><label>Initial Balance</label><input id="newCredits" type="number" min="0" value="0"></div>
+    <div class="field"><label>Password</label><input id="newPassword" type="password"></div>
   </div>
-</div>
+  <button class="btn" onclick="createCustomer()">Create Customer</button>
+  <div id="adminStatus" class="status"></div>
+  <div class="table-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>Email</th><th>Balance</th><th>Status</th><th>Add/Subtract</th></tr></thead><tbody id="customerBody"></tbody></table></div>
+</section>
+
+<section id="background" class="card page hidden">
+  <h2>Default Background</h2><p>Admin একবার background সেট করবে। Customer-এর background upload করার প্রয়োজন নেই।</p>
+  <div class="row"><input id="bg" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><button class="btn" onclick="setBackground()">Upload & Set Default</button></div>
+  <div id="bgStatus" class="status"></div>
+</section>
+
+<section id="pricing" class="card page hidden">
+  <h2>Pricing</h2><p>Customer প্রতি PDF generation-এর charge।</p>
+  <div class="row"><input id="price" type="number" min="0"><button class="btn" onclick="savePrice()">Save Price</button></div>
+</section>
+
+</div></main></div>
 
 <script>
-let me=null,data={},currentPage="customerHome",adminKeepAliveTimer=null;
-const fields=[["national_id","জাতীয় পরিচয়পত্র নম্বর"],["pin","পিন নম্বর"],["voter_no","ভোটার নম্বর"],["voter_area","ভোটার এরিয়া"],["voter_at","ভোটার অবস্থান"],["name_bn","নাম (বাংলা)"],["name_en","নাম (ইংরেজী)"],["dob","জন্ম তারিখ"],["father","পিতার নাম"],["mother","মাতার নাম"],["spouse","স্বামী/স্ত্রীর নাম"],["gender","লিঙ্গ"],["occupation","পেশা"],["blood_group","রক্তের গ্রুপ"],["birth_place","জন্মস্থান"],["present_address","বর্তমান ঠিকানা"],["permanent_address","স্থায়ী ঠিকানা"]];
-const $=id=>document.getElementById(id);
-const esc=v=>String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
-function showAuth(which){$("login").classList.toggle("hidden",which!=="login");$("register").classList.toggle("hidden",which!=="register");$("app").classList.add("hidden")}
-function show(id){currentPage=id;document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));const el=$(id);if(el)el.classList.remove("hidden");closeMenu()}
-function toggleMenu(){const side=$("sideNav");side.classList.toggle("open");$("menuOverlay").classList.toggle("open")}
-function closeMenu(){$("sideNav")?.classList.remove("open");$("menuOverlay")?.classList.remove("open")}
-function navItem(label,id){const b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;loadForPage(id)};return b}
-function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Generate PDF","customerHome"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"),navItem("Download History","history"));}else{n.append(navItem("Generate PDF","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
-async function loadForPage(id){if(id==="adminDashboard")await loadAdmin();if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
-function startAdminKeepAlive(){if(adminKeepAliveTimer)clearInterval(adminKeepAliveTimer);if(!me||me.role!=="admin")return;adminKeepAliveTimer=setInterval(async()=>{try{const r=await fetch("/api/auth/me?keepalive="+Date.now(),{credentials:"same-origin",cache:"no-store"});if(!r.ok){location.reload();return}const x=await r.json();$("balance").textContent=x.balance;await loadForPage(currentPage);await loadAnnouncement(false)}catch(e){console.warn("Admin keep-alive failed",e)}},300000)}
-async function login(e){e.preventDefault();$("loginError").classList.add("hidden");const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);try{const r=await fetch("/api/auth/login",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok){throw new Error(x.detail||"Login failed")}await boot()}catch(e){$("loginError").textContent=e.message;$("loginError").classList.remove("hidden")}}
-async function register(e){e.preventDefault();$("regError").classList.add("hidden");const fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);try{const r=await fetch("/api/auth/register",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Registration failed");await boot()}catch(e){$("regError").textContent=e.message;$("regError").classList.remove("hidden")}}
-async function boot(){try{const r=await fetch("/api/auth/me",{credentials:"same-origin"});if(!r.ok){showAuth("login");return}const x=await r.json();me=x.user;$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();const first=me.role==="admin"?"adminDashboard":"customerHome";show(first);$("title").textContent=me.role==="admin"?"Dashboard":"Generate PDF";await loadForPage(first);await loadAnnouncement(false);startAdminKeepAlive()}catch(e){console.error(e)}}
-async function logout(){await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin"});location.reload()}
-function setStatus(t){const el=$("cstatus");if(el)el.textContent=t}
-async function parseSource(){const f=$("source").files[0];if(!f)return setStatus("Source PDF নির্বাচন করুন।");const fd=new FormData();fd.append("file",f);setStatus("তথ্য বের করা হচ্ছে…");try{const r=await fetch("/api/customer/parse",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Parse failed");data=x.data;renderData();show("customerData");$("title").textContent="তথ্য যাচাই"}catch(e){setStatus(e.message||"Parse failed")}}
-function renderData(){const box=$("dataForm");box.innerHTML="";fields.forEach(([k,l])=>{const d=document.createElement("div");d.className="field"+(k.includes("address")?" wide":"");d.innerHTML=`<label>${esc(l)}</label><input data-k="${esc(k)}">`;const input=d.querySelector("input");input.value=String(data[k]||"");box.appendChild(d)})}
+let me=null,data={};
+const fields=[
+["national_id","জাতীয় পরিচয়পত্র নম্বর"],["pin","পিন নম্বর"],["voter_no","ভোটার নম্বর"],["form_no","ফরম নম্বর"],["serial_no","সিরিয়াল নম্বর"],["voter_area","ভোটার এরিয়া"],
+["name_bn","নাম (বাংলা)"],["name_en","নাম (ইংরেজী)"],["dob","জন্ম তারিখ"],["father","পিতার নাম"],["mother","মাতার নাম"],["spouse","স্বামী/স্ত্রীর নাম"],
+["gender","লিঙ্গ"],["education","শিক্ষাগত যোগ্যতা"],["occupation","পেশা"],["blood_group","রক্তের গ্রুপ"],["birth_place","জন্মস্থান"],
+["present_address","বর্তমান ঠিকানা"],["permanent_address","স্থায়ী ঠিকানা"]
+];
+function $(id){return document.getElementById(id)}
+function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));$(id).classList.remove("hidden")}
+function navItem(label,id){let b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;if(id==="history")loadHistory();if(id==="adminDashboard")loadAdmin();if(id==="customers")loadCustomers();if(id==="background")loadBg();if(id==="pricing")loadAdmin();};return b}
+function buildNav(){
+ const n=$("nav");n.innerHTML="";
+ if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Customers","customers"),navItem("Default Background","background"),navItem("Pricing","pricing"))}
+ n.append(navItem("Generate PDF",me.role==="admin"?"customerHome":"customerHome"),navItem("Download History","history"));
+}
+async function login(e){
+ e.preventDefault();$("loginError").classList.add("hidden");
+ const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);
+ const r=await fetch("/api/auth/login",{method:"POST",body:fd});const x=await r.json();
+ if(!r.ok){$("loginError").textContent=x.detail||"Login failed";$("loginError").classList.remove("hidden");return}
+ await boot();
+}
+async function boot(){
+ const r=await fetch("/api/auth/me");if(!r.ok){$("login").classList.remove("hidden");$("app").classList.add("hidden");return}
+ const x=await r.json();me=x.user;$("balance").textContent=x.balance;
+ $("login").classList.add("hidden");$("app").classList.remove("hidden");buildNav();show("customerHome");
+}
+async function logout(){await fetch("/api/auth/logout",{method:"POST"});location.reload()}
+function setStatus(t){$("cstatus").textContent=t}
+async function parseSource(){
+ const f=$("source").files[0];if(!f)return setStatus("Source PDF নির্বাচন করুন।");
+ const fd=new FormData();fd.append("file",f);setStatus("তথ্য বের করা হচ্ছে…");
+ const r=await fetch("/api/customer/parse",{method:"POST",body:fd});const x=await r.json();
+ if(!r.ok)return setStatus(x.detail||"Parse failed");data=x.data;renderData();show("customerData");$("title").textContent="তথ্য যাচাই";setStatus("তথ্য যাচাই সম্পন্ন।");
+}
+function autoResizeAddress(el){
+ if(!el)return;
+ el.style.height="auto";
+ el.style.height=Math.max(el.scrollHeight,46)+"px";
+}
+function renderData(){
+ const box=$("dataForm");box.innerHTML="";
+ fields.forEach(([k,l])=>{
+   let d=document.createElement("div");
+   d.className="field"+(k.includes("address")?" wide":"");
+   const value=String(data[k]||"");
+   const safe=value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+   const control=k.includes("address")
+     ? `<textarea data-k="${k}" rows="1">${safe}</textarea>`
+     : `<input data-k="${k}" value="${safe}">`;
+   d.innerHTML=`<label>${l}</label>${control}`;
+   box.appendChild(d);
+ });
+ box.querySelectorAll("textarea[data-k$='address']").forEach(autoResizeAddress);
+}
 function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
-function clearData(){data={};$("dataForm").innerHTML="";show("customerHome");$("title").textContent="Generate PDF"}
-async function generatePdf(){collect();if(!data.national_id)return alert("NID number required");const btn=$("generateBtn");const original=btn.innerHTML;btn.disabled=true;btn.classList.add("loading-btn");btn.innerHTML='<span class="spinner"></span> PDF তৈরি হচ্ছে…';setStatus("PDF তৈরি হচ্ছে…");try{const fd=new FormData();fd.append("data_json",JSON.stringify(data));const r=await fetch("/api/customer/generate",{method:"POST",body:fd,credentials:"same-origin"});if(!r.ok){let x={};try{x=await r.json()}catch(_){ }throw new Error(x.detail||"PDF generation failed")}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`V1_${String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")||"report"}.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);const balance=r.headers.get("X-PDF-Balance");if(balance!==null){$("balance").textContent=balance;$("customerBalanceCopy").textContent=balance}setStatus("PDF তৈরি হয়েছে এবং device download শুরু হয়েছে।");await loadHistory()}catch(e){alert(e.message||"PDF generation failed");setStatus("PDF তৈরি করা যায়নি।")}finally{btn.disabled=false;btn.classList.remove("loading-btn");btn.innerHTML=original}}
-async function loadStatus(){const r=await fetch("/api/customer/status",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("bkashNumber").textContent=x.bkash_number}
-async function submitPayment(){const amount=$("payAmount").value;const trx=$("trxId").value.trim();if(!amount||Number(amount)<=0)return alert("Amount দিন");if(!trx)return alert("Transaction ID দিন");const fd=new FormData();fd.append("amount",amount);fd.append("transaction_id",trx);fd.append("sender_bkash",$("senderBkash").value.trim());fd.append("note",$("paymentNote").value.trim());const r=await fetch("/api/customer/payments",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("payAmount").value="";$("senderBkash").value="";$("trxId").value="";$("paymentNote").value="";await loadMyPayments()}}
-async function loadMyPayments(){const r=await fetch("/api/customer/payments",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("myPayments").innerHTML=(x.payments||[]).map(p=>`<tr><td>${esc(p.created_at)}</td><td>৳${esc(p.amount)}</td><td>${esc(p.credits)}</td><td>${esc(p.transaction_id)}</td><td>${p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>'}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো payment request নেই।</td></tr>'}
-async function loadHistory(){const r=await fetch("/api/customer/history",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("historyBody").innerHTML=(x.history||[]).map(h=>`<tr><td>${esc(h.id)}</td><td>${esc(h.nid)}</td><td>${esc(h.filename)}</td><td>${esc(h.charged)}</td><td>${esc(h.created_at)}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো history নেই।</td></tr>'}
-async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();}
-function showCustomers(){const box=$("customerListCard");box.classList.remove("hidden");refreshCustomers();box.scrollIntoView({behavior:"smooth",block:"start"})}
-window.customerCache={};
-async function refreshCustomers(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const customers=x.customers||[];customers.forEach(c=>window.customerCache[c.id]=c);$("customerCount").textContent=customers.length;$("customersTableBody").innerHTML=customers.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(c.full_name||"")}</td><td>${esc(c.email)}</td><td>${esc(c.mobile||"")}</td><td>৳${esc(c.credits||0)}</td><td>${c.active?'<span class="tag green">Active</span>':'<span class="tag red">Inactive</span>'}</td><td>${esc(c.created_at)}</td><td><button class="btn secondary" onclick="openCustomerModal(${Number(c.id)})">Edit</button></td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো customer নেই।</td></tr>'}
-function openCustomerModal(id){const c=window.customerCache?.[id];if(!c)return;$("editCustomerId").value=c.id;$("editFullName").value=c.full_name||"";$("editMobile").value=c.mobile||"";$("editEmail").value=c.email||"";$("editPassword").value="";$("editRole").value=c.role||"customer";$("editActive").value=c.active?"1":"0";$("editCustomerBalance").textContent=c.credits||0;$("editBalanceAmount").value="";$("editBalanceStatus").textContent="";$("customerModal").classList.remove("hidden")}
-function closeCustomerModal(){$("customerModal").classList.add("hidden")}
-async function saveCustomer(){const id=$("editCustomerId").value;const fd=new FormData();fd.append("user_id",id);fd.append("email",$("editEmail").value.trim());fd.append("full_name",$("editFullName").value.trim());fd.append("mobile",$("editMobile").value.trim());fd.append("role",$("editRole").value);fd.append("active",$("editActive").value);fd.append("new_password",$("editPassword").value);const r=await fetch("/api/admin/customer/update",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Customer update failed");closeCustomerModal();await refreshCustomers();alert(x.message||"Customer updated successfully")}
-async function adjustCustomerBalance(direction){const id=$("editCustomerId").value;const amount=Math.abs(Number($("editBalanceAmount").value||0));if(!id)return;if(!amount)return alert("Balance amount দিন");const fd=new FormData();fd.append("user_id",id);fd.append("amount",String(direction*amount));try{const r=await fetch("/api/admin/customer/balance",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Balance update failed");$("editCustomerBalance").textContent=x.balance;$("editBalanceAmount").value="";$("editBalanceStatus").textContent=x.message||"Balance updated successfully";await refreshCustomers()}catch(e){$("editBalanceStatus").textContent=e.message||"Balance update failed"}}
-async function deleteCurrentCustomer(){const id=$("editCustomerId").value;if(!id)return;if(!confirm("এই customer account delete করতে চান?"))return;const fd=new FormData();fd.append("user_id",id);const r=await fetch("/api/admin/customer/delete",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Delete failed");closeCustomerModal();await refreshCustomers();alert(x.message||"Customer deleted successfully")}
-let allAdminPayments=[],paymentFilter="all";
-async function loadAdminPayments(){const r=await fetch("/api/admin/payments",{credentials:"same-origin"});if(!r.ok){$("paymentBody").innerHTML='<tr><td colspan="7" class="empty">Payment load করা যায়নি।</td></tr>';return}const x=await r.json();allAdminPayments=x.payments||[];updatePaymentCount();renderAdminPayments();const b=await fetch("/api/admin/bkash",{credentials:"same-origin"});if(b.ok){const z=await b.json();$("adminBkashNumber").value=z.bkash_number}}
-function updatePaymentCount(){$("pendingCount").textContent=allAdminPayments.filter(p=>p.status==="pending").length;$("approvedCount").textContent=allAdminPayments.filter(p=>p.status==="approved").length;$("rejectedCount").textContent=allAdminPayments.filter(p=>p.status==="rejected").length}
-function filterPayments(status){paymentFilter=status;renderAdminPayments()}
-function renderAdminPayments(){let payments=paymentFilter==="all"?allAdminPayments:allAdminPayments.filter(p=>p.status===paymentFilter);$("paymentBody").innerHTML=payments.map(p=>{const status=p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>';const action=p.status==="pending"?`<div class="small-actions"><button class="btn success" onclick="approvePayment(${p.id})">Approve</button><button class="btn danger" onclick="rejectPayment(${p.id})">Reject</button></div>`:"-";return `<tr><td><b>${esc(p.full_name||"Customer")}</b><br><small>${esc(p.email||"")}</small></td><td>৳${esc(p.amount||0)}</td><td>${esc(p.sender_bkash||"")}</td><td><b>${esc(p.transaction_id||"")}</b></td><td>${esc(p.note||"")}</td><td>${status}</td><td>${action}</td></tr>`}).join("")||'<tr><td colspan="7" class="empty">কোনো payment request পাওয়া যায়নি।</td></tr>'}
-async function approvePayment(id){if(!confirm("এই payment verify করে approve করবেন?"))return;const r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await loadAdminPayments();alert(x.message||"Approved")}
-async function rejectPayment(id){if(!confirm("এই payment request reject করবেন?"))return;const r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await loadAdminPayments()}
-async function savePaymentSettings(){const n=$("adminBkashNumber").value.trim();const price=$("adminWebPrice").value;try{const fd=new FormData();fd.append("bkash_number",n);const r=await fetch("/api/admin/bkash",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"bKash save failed");const fp=new FormData();fp.append("web_price",price);const rp=await fetch("/api/admin/price",{method:"POST",body:fp,credentials:"same-origin"});const xp=await rp.json();if(!rp.ok)throw new Error(xp.detail||"Price save failed");$("paymentSettingsStatus").textContent="Settings saved successfully.";await loadStatus()}catch(e){$("paymentSettingsStatus").textContent=e.message}}
-async function setBackground(){const f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed");if(r.ok)$("backgroundName").textContent=x.selected}
-async function loadBg(){const r=await fetch("/api/admin/background",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const name=x.background?.name||"None";$("bgStatus").textContent=x.background?.name?"Current Default: "+name:"No default background set";$("backgroundName").textContent=name}
-async function savePrice(){const fd=new FormData();fd.append("web_price",$("price").value);const r=await fetch("/api/admin/price",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");$("adminPrice").textContent=x.web_price;$("adminWebPrice").value=x.web_price;alert("Price saved")}
-async function loadAnnouncement(showAdmin){const r=await fetch(showAdmin?"/api/admin/announcement":"/api/announcement",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const msg=x.message||"";if(showAdmin){$("adminAnnouncement").value=msg;$("announcementStatus").textContent=msg?"Current message loaded.":"No message saved."}const bar=$("announcementBar"),track=$("announcementTrack");track.textContent=msg;if(msg){bar.classList.add("show")}else{bar.classList.remove("show")}}
-async function saveAnnouncement(){const fd=new FormData();fd.append("message",$("adminAnnouncement").value);const r=await fetch("/api/admin/announcement",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return $("announcementStatus").textContent=x.detail||"Save failed";$("announcementStatus").textContent="Message saved.";await loadAnnouncement(false)}
-async function loadProfile(){const r=await fetch("/api/user/profile",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("profileEmail").value=x.user.email||"";$("profileName").value=x.user.full_name||"";$("profileMobile").value=x.user.mobile||"";await loadStatus()}
-async function saveProfile(){const fd=new FormData();fd.append("full_name",$("profileName").value.trim());fd.append("mobile",$("profileMobile").value.trim());fd.append("new_password",$("profilePassword").value);const r=await fetch("/api/user/profile",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("profileStatus").textContent=r.ok?x.message:(x.detail||"Save failed");if(r.ok)$("profilePassword").value=""}
-$("loginForm").addEventListener("submit",login);$("registerForm").addEventListener("submit",register);boot();
+function clearData(){data={};$("dataForm").innerHTML="";show("customerHome")}
+async function generatePdf(){
+ collect();if(!data.national_id)return alert("NID number required");
+ const fd=new FormData();fd.append("data_json",JSON.stringify(data));setStatus("PDF তৈরি হচ্ছে…");
+ const r=await fetch("/api/customer/generate",{method:"POST",body:fd});const x=await r.json();
+ if(!r.ok)return alert(x.detail||"PDF generation failed");
+ $("balance").textContent=x.balance;
+ const p=await fetch(x.download);const blob=await p.blob();const u=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=u;a.download="V1_"+String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")+".pdf";a.click();URL.revokeObjectURL(u);
+ alert("PDF তৈরি হয়েছে। Charge: "+x.charged);loadHistory();
+}
+async function loadHistory(){
+ const r=await fetch("/api/customer/history");if(!r.ok)return;const x=await r.json();
+ $("historyBody").innerHTML=x.history.map(h=>`<tr><td>${h.id}</td><td>${h.nid||""}</td><td>${h.filename}</td><td>${h.charged}</td><td>${h.created_at}</td><td><a href="/api/customer/history/${h.id}/download" target="_blank">Download</a></td></tr>`).join("");
+}
+async function loadAdmin(){
+ const r=await fetch("/api/admin/customers");if(!r.ok)return;const x=await r.json();
+ $("customerCount").textContent=x.customers.length;$("adminPrice").textContent=(await (await fetch("/api/customer/status")).json()).price;
+ const bg=await (await fetch("/api/admin/background")).json();$("bgName").textContent=bg.background.name||"None";$("price").value=(await (await fetch("/api/customer/status")).json()).price;
+}
+async function createCustomer(){
+ const fd=new FormData();fd.append("email",$("newEmail").value);fd.append("password",$("newPassword").value);fd.append("credits",$("newCredits").value);
+ const r=await fetch("/api/admin/customers",{method:"POST",body:fd});const x=await r.json();$("adminStatus").textContent=r.ok?"Customer created.":(x.detail||"Failed");if(r.ok){$("newEmail").value="";$("newPassword").value="";loadCustomers();loadAdmin()}
+}
+async function loadCustomers(){
+ const r=await fetch("/api/admin/customers");if(!r.ok)return;const x=await r.json();
+ $("customerCount").textContent=x.customers.length;
+ $("customerBody").innerHTML=x.customers.map(c=>`<tr><td>${c.email}</td><td>${c.credits}</td><td>${c.active?"Active":"Disabled"}</td><td><button class="btn secondary" onclick="credit(${c.id},10)">+10</button> <button class="btn danger" onclick="credit(${c.id},-10)">-10</button></td></tr>`).join("");
+}
+async function credit(id,amount){const fd=new FormData();fd.append("amount",amount);const r=await fetch("/api/admin/customers/"+id+"/credit",{method:"POST",body:fd});if(!r.ok){const x=await r.json();alert(x.detail||"Failed")}loadCustomers()}
+async function setBackground(){
+ const f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");
+ const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd});const x=await r.json();
+ $("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed");loadAdmin();
+}
+async function loadBg(){const x=await (await fetch("/api/admin/background")).json();$("bgStatus").textContent=x.background.name?"Current Default: "+x.background.name:"No default background set"}
+async function savePrice(){
+ const fd=new FormData();fd.append("web_price",$("#price").value);const r=await fetch("/api/admin/price",{method:"POST",body:fd});const x=await r.json();if(!r.ok)alert(x.detail||"Failed");
+}
+boot();
+document.addEventListener("input",e=>{
+ if(e.target.matches("textarea[data-k$='address']")) autoResizeAddress(e.target);
+});
 </script>
-</body>
-</html>
+</body></html>

@@ -359,15 +359,7 @@ def set_setting_str(k,v):
     )
     c.commit(); c.close()
 
-# Render containers have ephemeral local storage. Restore the selected
-# background from the persistent production DB every time the service starts.
-try:
-    sync_default_background_to_local()
-except Exception as _bg_startup_error:
-    print("BACKGROUND STARTUP SYNC ERROR:", repr(_bg_startup_error))
-
 def balance(owner="demo"):
-
     c=db(); r=c.execute("SELECT credits FROM wallets WHERE owner=?",(owner,)).fetchone(); c.close()
     return int(r["credits"])
 
@@ -1998,18 +1990,15 @@ async def customer_generate(
     except Exception:
         raise HTTPException(400, "Invalid data JSON")
 
-    # Both customer and admin may use the same PDF screen. Customers pay the
-    # configured price; admins always generate for free and their balance is
-    # never required or deducted.
+    # The background is already synced at startup or after an admin upload.
+    # Keeping this out of the hot path removes an unnecessary DB read + image
+    # decode/write from every PDF generation request.
     price = int(prod_setting("web_price", "1"))
     nid = str(d.get("national_id", "")).strip()
     if not nid:
         raise HTTPException(400, "NID number is required")
 
-    is_admin = u["role"] == "admin"
-    charged = 0 if is_admin else price
-    new_balance = prod_balance(u["id"]) if is_admin else prod_charge(u["id"], price)
-
+    new_balance = prod_charge(u["id"], price)
     d["qr_b64"] = make_qr(
         d.get("name_en", ""),
         d.get("national_id", ""),
@@ -2018,14 +2007,13 @@ async def customer_generate(
 
     try:
         out = make_pdf(d)
-        save_generation(u["id"], nid, out.name, charged)
+        save_generation(u["id"], nid, out.name, price)
     except Exception:
-        if not is_admin:
-            with prod_engine.begin() as c:
-                c.execute(
-                    text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
-                    {"a": price, "u": u["id"]}
-                )
+        with prod_engine.begin() as c:
+            c.execute(
+                text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
+                {"a": price, "u": u["id"]}
+            )
         raise
 
     return FileResponse(
@@ -2034,9 +2022,8 @@ async def customer_generate(
         filename=out.name,
         headers={
             "Content-Disposition": f'attachment; filename="{out.name}"',
-            "X-PDF-Charged": str(charged),
+            "X-PDF-Charged": str(price),
             "X-PDF-Balance": str(new_balance),
-            "X-PDF-Role": u["role"],
         },
         background=BackgroundTask(lambda p=out: p.unlink(missing_ok=True)),
     )

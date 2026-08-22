@@ -39,7 +39,6 @@ DB = DATA / "dev.sqlite"
 
 DATA.mkdir(parents=True, exist_ok=True)
 GENERATED.mkdir(parents=True, exist_ok=True)
-STATIC.mkdir(parents=True, exist_ok=True)
 
 BACKGROUNDS = DATA / "backgrounds"
 BACKGROUNDS.mkdir(parents=True, exist_ok=True)

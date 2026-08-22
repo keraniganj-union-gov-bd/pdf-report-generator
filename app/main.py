@@ -21,7 +21,7 @@ except ImportError:
     WeasyHTML = None
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine, text
-BASE = Path(__file__).resolve().parent
+BASE = Path(__file__).resolve().parent.parent
 
 DATA = BASE / "data"
 GENERATED = BASE / "generated"
@@ -35,6 +35,7 @@ BACKGROUNDS = DATA / "backgrounds"
 BACKGROUNDS.mkdir(exist_ok=True)
 
 app = FastAPI(title="Free PDF Report Generator V46")
+STATIC.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 FIELDS = [

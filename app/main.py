@@ -1000,38 +1000,52 @@ def _find_browser():
 _BG_DATA_CACHE = {"key": None, "data": ""}
 
 def selected_background_data_url():
-    name = setting_str("background_image", "").strip()
-    if not name:
-        return ""
-    safe = Path(name).name
-    p = BACKGROUNDS / safe
-    if not p.exists() or not p.is_file():
+    """Return the selected background directly from the production DB.
+
+    Render's local filesystem is ephemeral: after a sleeping instance wakes
+    up (or a new instance is created), files written under /app/data can be
+    gone. The actual selected background is therefore read from
+    ``web_backgrounds`` in the production database on every PDF request.
+    A local copy is still restored as a convenience/cache, but PDF generation
+    never depends on that local copy existing.
+    """
+    bg = get_default_background_db()
+    if not bg:
         return ""
 
-    try:
-        key = (str(p), p.stat().st_mtime_ns, p.stat().st_size)
-    except OSError:
+    name = Path(str(bg.get("name") or "background.jpg")).name
+    mime = str(bg.get("mime") or "")
+    data_b64 = str(bg.get("data") or "")
+
+    if not data_b64 or not mime:
         return ""
 
+    # Cache by the stored background content. This avoids repeatedly decoding
+    # the same image during a single running instance while still picking up
+    # a new image immediately after the admin changes it.
+    key = (name, mime, data_b64)
     if _BG_DATA_CACHE["key"] == key:
         return _BG_DATA_CACHE["data"]
 
-    ext = p.suffix.lower()
-    mime = {
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp",
-    }.get(ext)
-    if not mime:
-        return ""
-
     try:
-        data = f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode()}"
+        raw = base64.b64decode(data_b64)
+        data_url = f"data:{mime};base64,{base64.b64encode(raw).decode()}"
         _BG_DATA_CACHE["key"] = key
-        _BG_DATA_CACHE["data"] = data
-        return data
-    except OSError:
+        _BG_DATA_CACHE["data"] = data_url
+
+        # Restore the ephemeral local copy too. If Render has restarted, this
+        # recreates the file automatically from the persistent DB.
+        try:
+            BACKGROUNDS.mkdir(exist_ok=True)
+            local_path = BACKGROUNDS / name
+            if not local_path.exists() or local_path.read_bytes() != raw:
+                local_path.write_bytes(raw)
+            set_setting_str("background_image", name)
+        except Exception:
+            pass
+
+        return data_url
+    except Exception:
         return ""
 
 def make_pdf(d):

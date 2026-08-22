@@ -193,10 +193,15 @@ def prod_init():
             except Exception:
                 pass
         # Backward-compatible migration for older local web databases.
-        try:
-            c.execute(text("ALTER TABLE web_generations ADD COLUMN pdf_data TEXT"))
-        except Exception:
-            pass
+        for ddl in [
+            "ALTER TABLE web_generations ADD COLUMN pdf_data TEXT",
+            "ALTER TABLE web_generations ADD COLUMN person_name TEXT DEFAULT ''",
+            "ALTER TABLE web_generations ADD COLUMN dob VARCHAR(50) DEFAULT ''"
+        ]:
+            try:
+                c.execute(text(ddl))
+            except Exception:
+                pass
 
         # Seed IDs manually so SQLite and Cockroach both work without
         # database-specific autoincrement syntax.
@@ -273,23 +278,19 @@ def prod_charge(user_id: int, amount: int):
         c.execute(text("UPDATE web_wallets SET credits=:b WHERE user_id=:u"), {"b": new, "u": user_id})
         return new
 
-def save_generation(user_id: int, nid: str, filename: str, charged: int):
-    """Save only generation metadata and keep the latest 5 records per user."""
+def save_generation(user_id: int, nid: str, filename: str, charged: int, person_name: str = "", dob: str = "", channel: str = "web"):
+    """Save generation metadata for the customer/admin audit history."""
     now = datetime.utcnow().isoformat()
     with prod_engine.begin() as c:
         gid = _next_id(c, "web_generations")
         c.execute(text(
-            "INSERT INTO web_generations(id,user_id,nid,filename,channel,charged,pdf_data,created_at) "
-            "VALUES(:id,:u,:n,:f,'web',:ch,'',:t)"
-        ), {"id":gid,"u":user_id,"n":nid,"f":filename,"ch":charged,"t":now})
-        c.execute(text("""
-            DELETE FROM web_generations
-            WHERE user_id=:u
-              AND id NOT IN (
-                  SELECT id FROM web_generations
-                  WHERE user_id=:u ORDER BY id DESC LIMIT 5
-              )
-        """), {"u":user_id})
+            "INSERT INTO web_generations(id,user_id,nid,filename,channel,charged,pdf_data,person_name,dob,created_at) "
+            "VALUES(:id,:u,:n,:f,:channel,:ch,'',:person_name,:dob,:t)"
+        ), {
+            "id": gid, "u": user_id, "n": nid, "f": filename,
+            "channel": channel, "ch": charged, "person_name": person_name,
+            "dob": dob, "t": now
+        })
 
 
 def set_default_background_db(name: str, mime: str, data_b64: str):
@@ -2023,7 +2024,13 @@ async def customer_generate(
 
     try:
         out = make_pdf(d)
-        save_generation(u["id"], nid, out.name, price)
+        person_name = str(d.get("name_bn") or d.get("name_en") or "").strip()
+        dob = str(d.get("dob") or "").strip()
+        save_generation(
+            u["id"], nid, out.name, price,
+            person_name=person_name, dob=dob,
+            channel="admin" if u.get("role") == "admin" else "web"
+        )
     except Exception:
         with prod_engine.begin() as c:
             c.execute(
@@ -2043,6 +2050,27 @@ async def customer_generate(
         },
         background=BackgroundTask(lambda p=out: p.unlink(missing_ok=True)),
     )
+
+
+@app.get("/api/admin/generation-history")
+def admin_generation_history(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    with prod_engine.begin() as c:
+        rows = c.execute(text("""
+            SELECT
+                g.id,
+                CASE WHEN u.role='admin' THEN 'Admin' ELSE COALESCE(NULLIF(u.email,''),'Customer') END AS username,
+                g.nid,
+                COALESCE(g.person_name,'') AS person_name,
+                COALESCE(g.dob,'') AS dob,
+                g.created_at,
+                g.channel
+            FROM web_generations g
+            JOIN web_users u ON u.id=g.user_id
+            ORDER BY g.id DESC
+            LIMIT 200
+        """)).mappings().all()
+    return {"success": True, "history": [dict(r) for r in rows]}
 
 
 @app.get("/api/customer/history")

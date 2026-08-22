@@ -87,9 +87,26 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
           <div class="table-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Mobile</th><th>Balance</th><th>Status</th><th>Created</th><th>Action</th></tr></thead><tbody id="customersTableBody"></tbody></table></div>
         </div>
 
-        <div class="paybox" style="margin-top:16px">
-          <div class="modal-head"><div><h3 style="margin:0">PDF Make History</h3><p class="muted" style="margin:4px 0 0">কোন user/admin কখন PDF তৈরি করেছে — শুধু Username, NID, Name, DOB ও Time দেখানো হবে।</p></div><button class="btn secondary" onclick="loadGenerationHistory()">Refresh</button></div>
-          <div class="table-wrap" style="margin-top:12px"><table class="tbl generation-history"><thead><tr><th>Username</th><th>NID No</th><th>Name</th><th>DOB</th><th>Time</th></tr></thead><tbody id="generationHistoryBody"></tbody></table></div>
+      </section>
+
+      <section id="makeHistory" class="card page hidden">
+        <div class="modal-head">
+          <div><h2 style="margin:0">Make History</h2><p>কোন user/admin কখন PDF তৈরি করেছে তার সম্পূর্ণ history এখানে দেখুন। Name, DOB এবং Dhaka time সহ দেখাবে।</p></div>
+          <button class="btn secondary" onclick="loadGenerationHistory(true)">Refresh</button>
+        </div>
+        <div class="paybox" style="margin-top:14px">
+          <div class="form-grid">
+            <div class="field"><label>From Date</label><input id="historyDateFrom" type="date"></div>
+            <div class="field"><label>To Date</label><input id="historyDateTo" type="date"></div>
+          </div>
+          <div class="row" style="margin-top:12px">
+            <button class="btn" onclick="filterGenerationHistory()">Filter</button>
+            <button class="btn secondary" onclick="clearGenerationHistoryFilter()">Clear Filter</button>
+            <span id="historyResultCount" class="muted" style="align-self:center;flex:0 0 auto"></span>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-top:14px">
+          <table class="tbl generation-history"><thead><tr><th>Username</th><th>NID No</th><th>Name</th><th>DOB</th><th>Time</th></tr></thead><tbody id="generationHistoryBody"></tbody></table>
         </div>
       </section>
 
@@ -149,8 +166,8 @@ function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add(
 function toggleMenu(){const side=$("sideNav");side.classList.toggle("open");$("menuOverlay").classList.toggle("open")}
 function closeMenu(){$("sideNav")?.classList.remove("open");$("menuOverlay")?.classList.remove("open")}
 function navItem(label,id){const b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;loadForPage(id)};return b}
-function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Generate PDF","customerHome"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"));}else{n.append(navItem("Generate PDF","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
-async function loadForPage(id){if(id==="adminDashboard")await loadAdmin();if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
+function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Generate PDF","customerHome"),navItem("Make History","makeHistory"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"));}else{n.append(navItem("Generate PDF","customerHome"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
+async function loadForPage(id){if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
 async function login(e){e.preventDefault();$("loginError").classList.add("hidden");const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);try{const r=await fetch("/api/auth/login",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok){throw new Error(x.detail||"Login failed")}await boot()}catch(e){$("loginError").textContent=e.message;$("loginError").classList.remove("hidden")}}
 async function register(e){e.preventDefault();$("regError").classList.add("hidden");const fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);try{const r=await fetch("/api/auth/register",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Registration failed");await boot()}catch(e){$("regError").textContent=e.message;$("regError").classList.remove("hidden")}}
 async function boot(){try{const r=await fetch("/api/auth/me",{credentials:"same-origin"});if(!r.ok){showAuth("login");return}const x=await r.json();me=x.user;$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();const first=me.role==="admin"?"adminDashboard":"customerHome";show(first);$("title").textContent=me.role==="admin"?"Dashboard":"Generate PDF";await loadForPage(first);await loadAnnouncement(false)}catch(e){console.error(e)}}
@@ -187,11 +204,45 @@ async function loadStatus(){const r=await fetch("/api/customer/status",{credenti
 async function submitPayment(){const amount=$("payAmount").value;const trx=$("trxId").value.trim();if(!amount||Number(amount)<=0)return alert("Amount দিন");if(!trx)return alert("Transaction ID দিন");const fd=new FormData();fd.append("amount",amount);fd.append("transaction_id",trx);fd.append("sender_bkash",$("senderBkash").value.trim());fd.append("note",$("paymentNote").value.trim());const r=await fetch("/api/customer/payments",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("payAmount").value="";$("senderBkash").value="";$("trxId").value="";$("paymentNote").value="";await loadMyPayments()}}
 async function loadMyPayments(){const r=await fetch("/api/customer/payments",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("myPayments").innerHTML=(x.payments||[]).map(p=>`<tr><td>${esc(p.created_at)}</td><td>৳${esc(p.amount)}</td><td>${esc(p.credits)}</td><td>${esc(p.transaction_id)}</td><td>${p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>'}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো payment request নেই।</td></tr>'}
 async function loadHistory(){const r=await fetch("/api/customer/history",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("historyBody").innerHTML=(x.history||[]).map(h=>`<tr><td>${esc(h.id)}</td><td>${esc(h.nid)}</td><td>${esc(h.filename)}</td><td>${esc(h.charged)}</td><td>${esc(h.created_at)}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো history নেই।</td></tr>'}
-async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();await loadGenerationHistory();}
+async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();}
 
 function formatDhakaTime(value){if(!value)return "";const d=new Date(String(value).endsWith("Z")?value:value+"Z");if(Number.isNaN(d.getTime()))return String(value);return d.toLocaleString("en-GB",{timeZone:"Asia/Dhaka",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true});}
 
-async function loadGenerationHistory(){const body=$("generationHistoryBody");if(!body)return;body.innerHTML='<tr><td colspan="5" class="empty">Loading...</td></tr>';try{const r=await fetch("/api/admin/generation-history",{credentials:"same-origin"});if(!r.ok){body.innerHTML='<tr><td colspan="5" class="empty">History load করা যায়নি।</td></tr>';return}const x=await r.json();const rows=x.history||[];body.innerHTML=rows.map(h=>`<tr><td>${esc(h.username||"")}</td><td>${esc(h.nid||"")}</td><td>${esc(h.person_name||"")}</td><td>${esc(h.dob||"")}</td><td>${esc(formatDhakaTime(h.created_at))}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো PDF generation history নেই।</td></tr>';}catch(_){body.innerHTML='<tr><td colspan="5" class="empty">History load করা যায়নি।</td></tr>';}}
+let allGenerationHistory=[];
+function historyDhakaDate(value){
+  if(!value)return "";
+  const d=new Date(String(value).endsWith("Z")?value:value+"Z");
+  if(Number.isNaN(d.getTime()))return "";
+  return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Dhaka",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+}
+function renderGenerationHistory(rows){
+  const body=$("generationHistoryBody");
+  if(!body)return;
+  body.innerHTML=(rows||[]).map(h=>`<tr><td>${esc(h.username||"")}</td><td>${esc(h.nid||"")}</td><td>${esc(h.person_name||"")}</td><td>${esc(h.dob||"")}</td><td>${esc(formatDhakaTime(h.created_at))}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো PDF generation history পাওয়া যায়নি।</td></tr>';
+  const count=$("historyResultCount");
+  if(count)count.textContent=`${(rows||[]).length} records`;
+}
+function filterGenerationHistory(){
+  const from=$("historyDateFrom")?.value||"";
+  const to=$("historyDateTo")?.value||"";
+  if(from&&to&&from>to){alert("From Date, To Date-এর পরে হতে পারবে না।");return;}
+  const rows=allGenerationHistory.filter(h=>{const d=historyDhakaDate(h.created_at);return (!from||d>=from)&&(!to||d<=to);});
+  renderGenerationHistory(rows);
+}
+function clearGenerationHistoryFilter(){if($("historyDateFrom"))$("historyDateFrom").value="";if($("historyDateTo"))$("historyDateTo").value="";renderGenerationHistory(allGenerationHistory);}
+async function loadGenerationHistory(forceRefresh=false){
+  const body=$("generationHistoryBody");
+  if(!body)return;
+  body.innerHTML='<tr><td colspan="5" class="empty">Loading...</td></tr>';
+  try{
+    const r=await fetch("/api/admin/generation-history?limit=1000",{credentials:"same-origin"});
+    if(!r.ok){body.innerHTML='<tr><td colspan="5" class="empty">History load করা যায়নি।</td></tr>';return;}
+    const x=await r.json();
+    allGenerationHistory=x.history||[];
+    filterGenerationHistory();
+  }catch(_){body.innerHTML='<tr><td colspan="5" class="empty">History load করা যায়নি।</td></tr>';}
+}
+
 function showCustomers(){const box=$("customerListCard");box.classList.remove("hidden");refreshCustomers();box.scrollIntoView({behavior:"smooth",block:"start"})}
 window.customerCache={};
 async function refreshCustomers(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const customers=x.customers||[];customers.forEach(c=>window.customerCache[c.id]=c);$("customerCount").textContent=customers.length;$("customersTableBody").innerHTML=customers.map(c=>`<tr><td>${esc(c.id)}</td><td>${esc(c.full_name||"")}</td><td>${esc(c.email)}</td><td>${esc(c.mobile||"")}</td><td>৳${esc(c.credits||0)}</td><td>${c.active?'<span class="tag green">Active</span>':'<span class="tag red">Inactive</span>'}</td><td>${esc(c.created_at)}</td><td><div class="small-actions"><button class="btn secondary" onclick="openCustomerModal(${Number(c.id)})">Edit</button><button class="btn danger" onclick="deleteCustomerFromList(${Number(c.id)})">Delete</button></div></td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো customer নেই।</td></tr>'}

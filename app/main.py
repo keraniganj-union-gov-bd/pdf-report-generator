@@ -1170,11 +1170,11 @@ h1 {{ margin:0; font-size:19px; }}
 .notice {{ margin:5px 0 8px; padding:4px 7px; text-align:center; font-size:8px; font-weight:bold; }}
 .top {{ display:block; position:relative; }}
 .media {{ position:fixed; left:0; top:92mm; width:71.12mm; display:flex; flex-direction:column; align-items:center; z-index:2; }}
-.photo-name {{ margin-top:2mm; width:38.1mm; max-width:38.1mm; min-height:7mm; font-family:"Segoe UI","Arial",sans-serif; font-size:13px; font-weight:500; line-height:1.12; text-align:center; overflow-wrap:anywhere; word-break:break-word; white-space:normal; letter-spacing:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }}
+.photo-name {{ margin-top:2mm; width:50.8mm; max-width:50.8mm; min-height:7mm; font-family:"Segoe UI","Arial",sans-serif; font-size:13px; font-weight:700; line-height:1.12; text-align:center; overflow-wrap:anywhere; word-break:break-word; white-space:normal; letter-spacing:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }}
 .photo {{ width:30.48mm; height:auto; max-height:none; object-fit:contain; border:0.6pt solid #777; border-radius:2.2mm; }}
 .empty {{ display:flex; align-items:center; justify-content:center; }}
 .qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}
-.section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:500; line-height:1.18; }}
+.section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:19px; font-weight:700; line-height:1.18; }}
 table {{ width:100%; border-collapse:collapse; }}
 td {{ border:0.10pt solid rgba(60,60,60,.08) !important; padding:3px 5px; vertical-align:top; background:transparent !important; box-shadow:none !important; text-shadow:none !important; filter:none !important; }}
 .label {{ width:35.5%; font-weight:300; font-size:13px; line-height:1.34; -webkit-font-smoothing:antialiased; background:transparent !important; border:0.10pt solid rgba(60,60,60,.08) !important; }}

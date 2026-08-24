@@ -1160,7 +1160,7 @@ def make_pdf(d):
 }}
 @page {{ size:A4; margin:0; }}
 * {{ box-sizing:border-box; text-shadow:none !important; box-shadow:none !important; -webkit-text-stroke:0 !important; }}
-body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; text-shadow:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
+body {{ font-family:Bangla,sans-serif; color:#222; font-size:13px; font-weight:300; line-height:1.28; -webkit-font-smoothing:antialiased; font-synthesis:none; text-shadow:none !important; box-shadow:none !important; filter:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
 .header, .notice, .section, table, .address, .footer {{ background:transparent; border:0 !important; box-shadow:none !important; text-shadow:none !important; }}
 .page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm; object-fit:fill; opacity:1; z-index:0; pointer-events:none; }}
 .report-content {{ position:relative; z-index:1; }}
@@ -1170,16 +1170,16 @@ h1 {{ margin:0; font-size:19px; }}
 .notice {{ margin:5px 0 8px; padding:4px 7px; text-align:center; font-size:8px; font-weight:bold; }}
 .top {{ display:block; position:relative; }}
 .media {{ position:fixed; left:0; top:92mm; width:71.12mm; display:flex; flex-direction:column; align-items:center; z-index:2; }}
-.photo-name {{ margin-top:2mm; width:38.1mm; max-width:38.1mm; min-height:7mm; font-family:"Segoe UI","Arial",sans-serif; font-size:13px; font-weight:600; line-height:1.12; text-align:center; overflow-wrap:anywhere; word-break:break-word; white-space:normal; letter-spacing:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }}
+.photo-name {{ margin-top:2mm; width:38.1mm; max-width:38.1mm; min-height:7mm; font-family:"Segoe UI","Arial",sans-serif; font-size:13px; font-weight:500; line-height:1.12; text-align:center; overflow-wrap:anywhere; word-break:break-word; white-space:normal; letter-spacing:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }}
 .photo {{ width:30.48mm; height:auto; max-height:none; object-fit:contain; border:0.6pt solid #777; border-radius:2.2mm; }}
 .empty {{ display:flex; align-items:center; justify-content:center; }}
 .qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}
-.section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:700; line-height:1.18; }}
+.section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:500; line-height:1.18; }}
 table {{ width:100%; border-collapse:collapse; }}
-td {{ border:0.10pt solid rgba(60,60,60,.08) !important; padding:3px 5px; vertical-align:top; background:#fff; box-shadow:none !important; text-shadow:none !important; }}
-.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:#f7f7f7; border:0.10pt solid rgba(60,60,60,.08) !important; }}
-.value {{ background:#fff; border:0.10pt solid rgba(60,60,60,.08) !important; font-weight:400; box-shadow:none !important; }}
-.address {{ border:0.10pt solid rgba(60,60,60,.08) !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
+td {{ border:0.10pt solid rgba(60,60,60,.08) !important; padding:3px 5px; vertical-align:top; background:transparent !important; box-shadow:none !important; text-shadow:none !important; filter:none !important; }}
+.label {{ width:35.5%; font-weight:300; font-size:13px; line-height:1.34; -webkit-font-smoothing:antialiased; background:transparent !important; border:0.10pt solid rgba(60,60,60,.08) !important; }}
+.value {{ background:transparent !important; border:0.10pt solid rgba(60,60,60,.08) !important; font-weight:300; box-shadow:none !important; text-shadow:none !important; filter:none !important; }}
+.address {{ border:0.10pt solid rgba(60,60,60,.08) !important; padding:4px 6px; line-height:1.40; font-weight:300; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:transparent !important; box-shadow:none !important; text-shadow:none !important; filter:none !important; }}
 .footer {{ margin-top:8px; padding-top:4px; text-align:center; font-size:8px; font-weight:600; }}
 </style>
 </head>

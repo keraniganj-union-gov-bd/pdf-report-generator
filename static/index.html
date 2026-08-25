@@ -28,6 +28,11 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
 @media(max-width:650px){.side{transform:translateX(-105%);width:min(82vw,290px);box-shadow:12px 0 30px rgba(23,52,79,.10)}.side.open{transform:translateX(0)}.main{margin-left:0}.menu-overlay.open{display:block}.mobile-menu-btn{display:inline-grid;place-items:center}.top{height:62px;padding:0 12px}.content{padding:12px}.row{flex-direction:column;align-items:stretch}.row button{width:100%}.actions{flex-direction:column}.actions button{width:100%}.grid3{gap:8px}.card{padding:15px}.brand{padding:18px}.announcement-track{animation-duration:55s}.tbl th,.tbl td{padding:8px 7px}.badge{font-size:11px;padding:6px 9px}.paybox{padding:13px}}
 
 .admin-only-birth-bg{display:none}
+.pdf-loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.72);backdrop-filter:blur(2px);z-index:9999;display:none;align-items:center;justify-content:center}
+.pdf-loading-overlay.show{display:flex}
+.pdf-loading-card{min-width:270px;max-width:90vw;background:#fff;border:1px solid #d9e6ef;border-radius:16px;padding:22px 24px;text-align:center;box-shadow:0 12px 35px rgba(30,90,140,.12)}
+.pdf-spinner{width:34px;height:34px;border:4px solid #dbeaf5;border-top-color:#1677e8;border-radius:50%;animation:pdfspin .8s linear infinite;margin:0 auto 12px}
+.pdf-loading-title{font-weight:800;color:#17344f;font-size:15px}.pdf-loading-sub{margin-top:5px;color:#6a7f92;font-size:12px}@keyframes pdfspin{to{transform:rotate(360deg)}}
 /* Auto Birth Reference form */
 .birth-reference-form{display:block}
 .birth-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:4px 0 8px}
@@ -71,6 +76,7 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
   </div>
 </div>
 
+<div id="pdfLoadingOverlay" class="pdf-loading-overlay"><div class="pdf-loading-card"><div class="pdf-spinner"></div><div id="pdfLoadingTitle" class="pdf-loading-title">PDF তৈরি হচ্ছে...</div><div id="pdfLoadingSub" class="pdf-loading-sub">অনুগ্রহ করে অপেক্ষা করুন, আপনার PDF প্রস্তুত হচ্ছে।</div></div></div>
 <div id="app" class="app hidden">
   <aside class="side" id="sideNav">
     <div class="brand"><b>PDF Report Generator</b><small>Web Version · Customer/Admin</small></div>
@@ -333,7 +339,11 @@ function renderData(){
 }
 function collect(){document.querySelectorAll("#dataForm [data-k]").forEach(x=>data[x.dataset.k]=x.value.trim())}
 function clearData(){data={};$("dataForm").innerHTML="";show("customerHome");$("title").textContent="Sign to Server"}
-async function generatePdf(){collect();if(!data.national_id)return alert("NID number required");const btn=$("generateBtn");const original=btn.innerHTML;btn.disabled=true;btn.classList.add("loading-btn");btn.innerHTML='<span class="spinner"></span> PDF তৈরি হচ্ছে…';setStatus("PDF তৈরি হচ্ছে…");try{const fd=new FormData();fd.append("data_json",JSON.stringify(data));const r=await fetch("/api/customer/generate",{method:"POST",body:fd,credentials:"same-origin"});if(!r.ok){let x={};try{x=await r.json()}catch(_){ }throw new Error(x.detail||"PDF generation failed")}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`V1_${String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")||"report"}.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);const balance=r.headers.get("X-PDF-Balance");if(balance!==null){$("balance").textContent=balance;$("customerBalanceCopy").textContent=balance}setStatus("PDF তৈরি হয়েছে এবং device download শুরু হয়েছে।");await loadHistory()}catch(e){alert(e.message||"PDF generation failed");setStatus("PDF তৈরি করা যায়নি।")}finally{btn.disabled=false;btn.classList.remove("loading-btn");btn.innerHTML=original}}
+function showPdfLoading(title="PDF তৈরি হচ্ছে...", sub="অনুগ্রহ করে অপেক্ষা করুন, আপনার PDF প্রস্তুত হচ্ছে।"){
+  const o=$("pdfLoadingOverlay"); if(!o)return; $("pdfLoadingTitle").textContent=title; $("pdfLoadingSub").textContent=sub; o.classList.add("show");
+}
+function hidePdfLoading(){const o=$("pdfLoadingOverlay"); if(o)o.classList.remove("show")}
+async function generatePdf(){collect();if(!data.national_id)return alert("NID number required");const btn=$("generateBtn");const original=btn.innerHTML;btn.disabled=true;btn.classList.add("loading-btn");btn.innerHTML='<span class="spinner"></span> প্রস্তুত হচ্ছে…';setStatus("PDF তৈরি হচ্ছে…");showPdfLoading("Sign to Server PDF তৈরি হচ্ছে...","আপনার PDF প্রস্তুত হচ্ছে। অনুগ্রহ করে অপেক্ষা করুন।");try{const fd=new FormData();fd.append("data_json",JSON.stringify(data));const r=await fetch("/api/customer/generate",{method:"POST",body:fd,credentials:"same-origin"});if(!r.ok){let x={};try{x=await r.json()}catch(_){ }throw new Error(x.detail||"PDF generation failed")}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`V1_${String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")||"report"}.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);const balance=r.headers.get("X-PDF-Balance");if(balance!==null){$("balance").textContent=balance;$("customerBalanceCopy").textContent=balance}setStatus("PDF তৈরি হয়েছে এবং device download শুরু হয়েছে।");await loadHistory()}catch(e){alert(e.message||"PDF generation failed");setStatus("PDF তৈরি করা যায়নি।")}finally{btn.disabled=false;btn.classList.remove("loading-btn");btn.innerHTML=original;hidePdfLoading()}}
 async function loadStatus(){const r=await fetch("/api/customer/status",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("bkashNumber").textContent=x.bkash_number}
 async function submitPayment(){const amount=$("payAmount").value;const trx=$("trxId").value.trim();if(!amount||Number(amount)<=0)return alert("Amount দিন");if(!trx)return alert("Transaction ID দিন");const fd=new FormData();fd.append("amount",amount);fd.append("transaction_id",trx);fd.append("sender_bkash",$("senderBkash").value.trim());fd.append("note",$("paymentNote").value.trim());const r=await fetch("/api/customer/payments",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("payAmount").value="";$("senderBkash").value="";$("trxId").value="";$("paymentNote").value="";await loadMyPayments()}}
 async function loadMyPayments(){const r=await fetch("/api/customer/payments",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("myPayments").innerHTML=(x.payments||[]).map(p=>`<tr><td>${esc(p.created_at)}</td><td>৳${esc(p.amount)}</td><td>${esc(p.credits)}</td><td>${esc(p.transaction_id)}</td><td>${p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>'}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো payment request নেই।</td></tr>'}
@@ -490,7 +500,7 @@ async function signToServer(){
   if(!/^\d{17}$/.test(no))return $("birthStatus").textContent="Birth Registration Number অবশ্যই 17 digit হতে হবে।";
   if(!/^\d{4}-\d{2}-\d{2}$/.test(dob))return $("birthStatus").textContent="DOB অবশ্যই YYYY-MM-DD format হতে হবে।";
   syncBirthTopFields(); autoBirthWords();
-  const btn=$("birthSignBtn"); btn.disabled=true; $("birthStatus").textContent="PDF তৈরি হচ্ছে…";
+  const btn=$("birthSignBtn"); const original=btn.innerHTML; btn.disabled=true; btn.innerHTML="প্রস্তুত হচ্ছে…"; $("birthStatus").textContent="PDF তৈরি হচ্ছে…"; showPdfLoading("Auto Birth PDF তৈরি হচ্ছে...","তথ্য ও background দিয়ে PDF প্রস্তুত হচ্ছে। অনুগ্রহ করে অপেক্ষা করুন।");
   const fd=new FormData();
   const map={
     birthRegNo:"birth_reg_no",birthDob:"dob",birthRegDate:"date_of_registration",birthIssueDate:"date_of_issuance",
@@ -512,7 +522,7 @@ async function signToServer(){
     setTimeout(()=>URL.revokeObjectURL(url),2000);
     $("birthStatus").textContent="PDF তৈরি হয়েছে এবং download শুরু হয়েছে।";
     await boot();
-  }catch(e){$("birthStatus").textContent=e.message||"PDF তৈরি করা যায়নি"}finally{btn.disabled=false}
+  }catch(e){$("birthStatus").textContent=e.message||"PDF তৈরি করা যায়নি"}finally{btn.disabled=false;btn.innerHTML=original;hidePdfLoading()}
 }
 async function setBackground(){const f=$("bg").files[0];if(!f)return alert("Generate PDF background photo নির্বাচন করুন");const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("bgStatus").textContent=r.ok?"Generate PDF background set: "+x.selected:(x.detail||"Upload failed");if(r.ok)$("backgroundName").textContent=x.selected}
 async function setBirthBackground(){const f=$("birthAdminBg").files[0];if(!f)return alert("Auto Birth PDF background photo নির্বাচন করুন");const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/birth-background",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("birthBgStatus").textContent=r.ok?"Auto Birth background set: "+x.selected:(x.detail||"Upload failed");if(r.ok)loadBirthBackgroundAdmin()}

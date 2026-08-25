@@ -1218,7 +1218,7 @@ html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
 body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:10.7pt;line-height:1.18;}}
 .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
 .page {{position:relative;width:210mm;height:297mm;padding:0;}}
-.content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:rgba(255,255,255,.94);}}
+.content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:transparent;}}
 .qr-block {{position:absolute;left:0;top:0;width:32mm;text-align:center;}}
 .qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
 .ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
@@ -1426,10 +1426,10 @@ h1 {{ margin:0; font-size:19px; }}
 .qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}
 .section {{ margin-top:3px; margin-bottom:1px; background:#c2e4eb; border:0 !important; padding:4px 8px; font-size:17px; font-weight:700; line-height:1.18; }}
 table {{ width:100%; border-collapse:collapse; }}
-td {{ border:0.10pt solid #d5d5d5 !important; padding:3px 5px; vertical-align:top; background:#fff; box-shadow:none !important; text-shadow:none !important; }}
-.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:#f7f7f7; border:0.10pt solid #d5d5d5 !important; }}
-.value {{ background:#fff; border:0.10pt solid #d5d5d5 !important; font-weight:400; box-shadow:none !important; }}
-.address {{ border:0.10pt solid #e6e6e6 !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
+td {{ border:0.08pt solid rgba(0,0,0,.08) !important; padding:3px 5px; vertical-align:top; background:transparent !important; box-shadow:none !important; text-shadow:none !important; }}
+.label {{ width:35.5%; font-weight:400; font-size:13px; line-height:1.32; -webkit-font-smoothing:antialiased; background:transparent !important; border:0.08pt solid rgba(0,0,0,.08) !important; }}
+.value {{ background:transparent !important; border:0.08pt solid rgba(0,0,0,.08) !important; font-weight:400; box-shadow:none !important; }}
+.address {{ border:0.08pt solid rgba(0,0,0,.08) !important; padding:4px 6px; line-height:1.40; font-weight:400; min-height:0; margin-bottom:3px; overflow-wrap:anywhere; word-break:break-word; background:#fff; }}
 .footer {{ margin-top:8px; padding-top:4px; text-align:center; font-size:8px; font-weight:600; }}
 </style>
 </head>

@@ -1172,155 +1172,348 @@ def _birth_date_display(value: str) -> str:
     return value
 
 def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg"):
-    """Create a clearly marked, user-supplied birth-data reference PDF.
-    No BDRIS scraping, CAPTCHA automation, or government-record retrieval occurs.
+    """Create a clean A4 birth-information verification report.
+
+    This is a user-entered/reference report, not a government-issued
+    certificate and does not automate BDRIS CAPTCHA or scrape BDRIS.
     """
     job = uuid.uuid4().hex[:12]
-    safe_no = re.sub(r"[^0-9A-Za-z_-]", "", str(d.get("birth_reg_no") or "birth-reference")) or "birth-reference"
-    out = GENERATED / f"Birth_Reference_{safe_no}_{job}.pdf"
+    safe_no = re.sub(r"[^0-9A-Za-z_-]", "", str(d.get("birth_reg_no") or "birth-report")) or "birth-report"
+    out = GENERATED / f"Birth_Information_Report_{safe_no}_{job}.pdf"
     html_path = GENERATED / f"birth_render_{job}.html"
 
-    # QR points only to the public verification homepage; it does not contain
-    # scraped government data or an impersonating verification payload.
+    # QR is only a navigation aid to the public BDRIS verification service.
     qr_data = "https://everify.bdris.gov.bd/"
     qr_bytes = io.BytesIO()
-    qrcode.make(qr_data, box_size=7, border=1).save(qr_bytes, format="PNG")
+    qrcode.make(qr_data, box_size=6, border=1).save(qr_bytes, format="PNG")
     qr_b64 = base64.b64encode(qr_bytes.getvalue()).decode()
-    ref_code = ''.join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
+    ref_code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(6))
 
     bg_html = ""
     if background_b64:
         bg_html = f'<img class="page-bg" src="data:{background_mime};base64,{background_b64}">'
     else:
-        bg = selected_background_data_url()
+        bg = get_birth_background_db()
         if bg:
-            bg_html = f'<img class="page-bg" src="{bg}">'
+            bg_html = f'<img class="page-bg" src="data:{bg["mime"]};base64,{bg["data"]}">'
+        else:
+            bg = selected_background_data_url()
+            if bg:
+                bg_html = f'<img class="page-bg" src="{bg}">'
 
     dob_words = str(d.get("dob_words") or "").strip() or birth_dob_in_words(d.get("dob", ""))
     dob = _birth_date_display(d.get("dob", ""))
     reg_date = _birth_date_display(d.get("date_of_registration", ""))
     issue_date = _birth_date_display(d.get("date_of_issuance", ""))
 
-    def cell(label_bn, label_en, value):
-        return (
-            f'<div class="bi-label"><div class="bn">{esc(label_bn)}</div><div class="en">{esc(label_en)}</div></div>'
-            f'<div class="bi-value">{esc(value)}</div>'
-        )
+    def escv(v):
+        return esc("" if v is None else str(v))
+
+    def pair_row(bn, en, value_bn, value_en):
+        return f"""
+        <div class="info-row">
+          <div class="label-bn">{escv(bn)} <span class="colon">:</span></div>
+          <div class="value-bn">{escv(value_bn)}</div>
+          <div class="label-en">{escv(en)} <span class="colon">:</span></div>
+          <div class="value-en">{escv(value_en)}</div>
+        </div>"""
 
     html_doc = f"""<!doctype html>
-<html lang="bn"><head><meta charset="utf-8">
+<html lang="bn">
+<head>
+<meta charset="utf-8">
 <style>
-@font-face {{font-family:Bangla;src:url('file://{FONT.as_posix()}');font-weight:400;}}
-@font-face {{font-family:Bangla;src:url('file://{FONT_SEMIBOLD.as_posix()}');font-weight:700;}}
-@page {{size:A4;margin:0;}}
-* {{box-sizing:border-box;box-shadow:none!important;text-shadow:none!important;}}
-html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
-body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:10.7pt;line-height:1.18;}}
-.page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
-.page {{position:relative;width:210mm;height:297mm;padding:0;}}
-.content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:transparent;}}
-.qr-block {{position:absolute;left:-7.62mm;top:0;width:32mm;text-align:center;}}
-.qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
-.ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
-.head {{position:absolute;left:0;right:0;top:25.4mm;text-align:center;}}
-.office {{font-family:Arial,sans-serif;font-weight:700;font-size:13pt;line-height:1.35;white-space:nowrap;}}
-.office-bn {{font-size:11pt;font-weight:700;margin-top:1mm;}}
-.rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2mm;}}
-.title {{font-size:13.5pt;font-weight:700;margin-top:2mm;white-space:nowrap;}}
-.notice {{display:none !important;}}
-.grid-top {{position:absolute;left:0;right:0;top:65mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
-.top-item {{font-size:8.5pt;}}
-.top-item.center {{text-align:center;}}
-.top-label {{font-weight:700;}}
-.top-value {{margin-top:1.5mm;font-size:9.5pt;}}
-.bio {{position:absolute;left:0;right:0;top:83mm;}}
-.bio-row {{display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:11mm;align-items:start;}}
-.bio-row.single {{grid-template-columns:38mm 1fr 43mm 1.15fr;}}
-.bio-label {{font-weight:700;padding:2.3mm 1.5mm 1.5mm 0;display:grid;grid-template-columns:minmax(0,1fr) 3.5mm;column-gap:1mm;align-items:start;}}.bio-label .label-text {{min-width:0;}}.bio-label .colon {{text-align:center;width:3.5mm;}}
-.bio-value {{padding:2.3mm 2mm 1.5mm 0;overflow-wrap:anywhere;}}
-.bio-value.en {{font-family:Arial,sans-serif;}}
-.addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:25mm;}}
-.addr .bio-value {{white-space:pre-wrap;line-height:1.35;}}
-.bottom-note {{position:absolute;left:0;right:0;bottom:3mm;text-align:center;font-family:Arial,sans-serif;font-size:6.8pt;color:#555;}}
-.watermark {{position:absolute;left:0;right:0;bottom:2.5mm;text-align:center;font-family:Arial,sans-serif;font-size:5.5pt;font-weight:600;color:rgba(70,70,70,.75);transform:none;pointer-events:none;}}
-</style></head>
+@font-face {{
+  font-family:ReportBangla;
+  src:url('file://{FONT.as_posix()}');
+  font-weight:400;
+}}
+@font-face {{
+  font-family:ReportBangla;
+  src:url('file://{FONT_SEMIBOLD.as_posix()}');
+  font-weight:700;
+}}
+@page {{ size:A4; margin:0; }}
+* {{
+  box-sizing:border-box;
+  box-shadow:none!important;
+  text-shadow:none!important;
+}}
+html,body {{
+  margin:0;
+  padding:0;
+  width:210mm;
+  height:297mm;
+}}
+body {{
+  font-family:ReportBangla,"Noto Sans Bengali","Segoe UI",Arial,sans-serif;
+  color:#17212b;
+  background:#fff;
+  font-size:10.5pt;
+  line-height:1.25;
+}}
+.page {{
+  position:relative;
+  width:210mm;
+  height:297mm;
+  overflow:hidden;
+}}
+.page-bg {{
+  position:absolute;
+  inset:0;
+  width:210mm;
+  height:297mm;
+  object-fit:cover;
+  z-index:0;
+}}
+.sheet {{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  padding:15mm 18mm 13mm 18mm;
+  background:transparent;
+}}
+.topbar {{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10mm;
+}}
+.brand {{
+  flex:1;
+  text-align:left;
+}}
+.report-kicker {{
+  display:inline-block;
+  font-family:Arial,sans-serif;
+  font-size:7.5pt;
+  font-weight:700;
+  letter-spacing:.8px;
+  border:1px solid rgba(23,33,43,.22);
+  border-radius:12px;
+  padding:1.2mm 3mm;
+  margin-bottom:3mm;
+}}
+.report-title {{
+  font-size:20pt;
+  line-height:1.08;
+  font-weight:700;
+  margin:0;
+}}
+.report-subtitle {{
+  margin-top:2mm;
+  font-family:Arial,sans-serif;
+  font-size:9pt;
+  color:#536474;
+}}
+.qr-area {{
+  width:33mm;
+  text-align:center;
+  flex:none;
+}}
+.qr {{
+  width:28mm;
+  height:28mm;
+  display:block;
+  margin:0 auto;
+}}
+.refcode {{
+  margin-top:1.5mm;
+  font-family:Arial,sans-serif;
+  font-size:7.5pt;
+  font-weight:700;
+  letter-spacing:1.5px;
+}}
+.meta {{
+  margin-top:9mm;
+  display:grid;
+  grid-template-columns:1fr 1.2fr 1fr;
+  gap:5mm;
+}}
+.meta-card {{
+  border:1px solid rgba(23,33,43,.16);
+  border-radius:6px;
+  padding:3mm 4mm;
+  background:rgba(255,255,255,.10);
+}}
+.meta-label {{
+  font-family:Arial,sans-serif;
+  font-size:7.5pt;
+  color:#5d6d7b;
+  margin-bottom:1mm;
+}}
+.meta-value {{
+  font-family:Arial,sans-serif;
+  font-size:10pt;
+  font-weight:700;
+  overflow-wrap:anywhere;
+}}
+.section {{
+  margin-top:8mm;
+}}
+.section-title {{
+  font-size:12.5pt;
+  font-weight:700;
+  padding-bottom:2mm;
+  border-bottom:1px solid rgba(23,33,43,.18);
+}}
+.info-table {{
+  margin-top:3mm;
+  border:1px solid rgba(23,33,43,.12);
+  border-radius:6px;
+  overflow:hidden;
+}}
+.info-row {{
+  display:grid;
+  grid-template-columns:30mm 1fr 31mm 1fr;
+  min-height:10.5mm;
+  align-items:start;
+  border-bottom:1px solid rgba(23,33,43,.10);
+}}
+.info-row:last-child {{
+  border-bottom:none;
+}}
+.label-bn,.label-en {{
+  padding:2.7mm 2mm 2.2mm 3mm;
+  font-weight:700;
+  background:rgba(23,33,43,.025);
+  white-space:nowrap;
+}}
+.value-bn,.value-en {{
+  padding:2.7mm 3mm 2.2mm 2mm;
+  overflow-wrap:anywhere;
+}}
+.value-en,.label-en {{
+  font-family:Arial,"Segoe UI",sans-serif;
+}}
+.colon {{
+  margin-left:1mm;
+}}
+.address-grid {{
+  margin-top:3mm;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5mm;
+}}
+.address-card {{
+  border:1px solid rgba(23,33,43,.12);
+  border-radius:6px;
+  min-height:38mm;
+  padding:3.5mm 4mm;
+}}
+.address-label {{
+  font-weight:700;
+  font-size:10pt;
+  margin-bottom:2mm;
+}}
+.address-value {{
+  white-space:pre-wrap;
+  line-height:1.45;
+}}
+.footer {{
+  position:absolute;
+  left:18mm;
+  right:18mm;
+  bottom:7mm;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:10mm;
+  font-family:Arial,sans-serif;
+  font-size:6.8pt;
+  color:#63717d;
+}}
+.footer-note {{
+  max-width:150mm;
+}}
+.footer-code {{
+  font-weight:700;
+  letter-spacing:1px;
+}}
+</style>
+</head>
 <body>
-{bg_html}
 <div class="page">
-  <div class="content">
-    <div class="qr-block">
-      <img class="qr" src="data:image/png;base64,{qr_b64}">
-      <div class="ref">{ref_code}</div>
-    </div>
-
-    <div class="head">
-      <div class="office">Government of the People’s Republic of Bangladesh</div>
-      <div class="office">Office of the Registrar, Birth and Death Registration</div>
-      <div class="office-bn">{esc(d.get("union_en",""))}</div>
-      <div class="office-bn">{esc(d.get("upazila_district_en",""))}</div>
-      <div class="rule">(Rule 9, 10)</div>
-      <div class="title">জন্ম নিবন্ধন সনদ / Birth Registration Certificate</div>
-      <div class="notice">UNOFFICIAL REFERENCE COPY — NOT A GOVERNMENT-ISSUED CERTIFICATE</div>
-    </div>
-
-    <div class="grid-top">
-      <div class="top-item">
-        <div class="top-label">Date of Registration</div>
-        <div class="top-value">{esc(reg_date)}</div>
+  {bg_html}
+  <div class="sheet">
+    <div class="topbar">
+      <div class="brand">
+        <div class="report-kicker">BIRTH INFORMATION / VERIFICATION REPORT</div>
+        <div class="report-title">Birth Information Report</div>
+        <div class="report-subtitle">
+          User-entered information prepared for reference and verification.
+        </div>
       </div>
-      <div class="top-item center">
-        <div class="top-label">Birth Registration Number</div>
-        <div class="top-value">{esc(d.get("birth_reg_no",""))}</div>
-      </div>
-      <div class="top-item center">
-        <div class="top-label">Date of Issuance</div>
-        <div class="top-value">{esc(issue_date)}</div>
+      <div class="qr-area">
+        <img class="qr" src="data:image/png;base64,{qr_b64}">
+        <div class="refcode">{ref_code}</div>
       </div>
     </div>
 
-    <div class="bio">
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">জন্ম তারিখ</span><span class="colon">:</span></div><div class="bio-value">{esc(dob)}</div>
-        <div class="bio-label"><span class="label-text">Sex</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("sex",""))}</div>
+    <div class="meta">
+      <div class="meta-card">
+        <div class="meta-label">Date of Registration</div>
+        <div class="meta-value">{escv(reg_date)}</div>
       </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
-        <div></div><div></div>
+      <div class="meta-card">
+        <div class="meta-label">Birth Registration Number</div>
+        <div class="meta-value">{escv(d.get("birth_reg_no",""))}</div>
       </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">নাম</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("name_bn",""))}</div>
-        <div class="bio-label"><span class="label-text">Name</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("name_en",""))}</div>
-      </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">মাতা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("mother",""))}</div>
-        <div class="bio-label"><span class="label-text">Mother</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("mother_en",""))}</div>
-      </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">মাতার জাতীয়তা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("mother_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
-        <div class="bio-label"><span class="label-text">Nationality</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("mother_nationality_en", d.get("nationality","Bangladeshi")))}</div>
-      </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">পিতা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("father",""))}</div>
-        <div class="bio-label"><span class="label-text">Father</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("father_en", d.get("father","")))}</div>
-      </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">পিতার জাতীয়তা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("father_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
-        <div class="bio-label"><span class="label-text">Nationality</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("father_nationality_en", d.get("nationality","Bangladeshi")))}</div>
-      </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">জন্মস্থান</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("birth_place_bn", d.get("birth_place","")))}</div>
-        <div class="bio-label"><span class="label-text">Place of Birth</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("birth_place_en", d.get("birth_place","")))}</div>
-      </div>
-      <div class="addr">
-        <div class="bio-label"><span class="label-text">স্থায়ী ঠিকানা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("permanent_bn",""))}</div>
-        <div class="bio-label"><span class="label-text">Permanent Address</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("permanent_en",""))}</div>
+      <div class="meta-card">
+        <div class="meta-label">Date of Issuance</div>
+        <div class="meta-value">{escv(issue_date)}</div>
       </div>
     </div>
 
-    <div class="watermark">UNOFFICIAL REFERENCE</div>
+    <div class="section">
+      <div class="section-title">Birth Details / জন্ম সংক্রান্ত তথ্য</div>
+      <div class="info-table">
+        <div class="info-row">
+          <div class="label-bn">জন্ম তারিখ <span class="colon">:</span></div>
+          <div class="value-bn">{escv(dob)}</div>
+          <div class="label-en">Sex <span class="colon">:</span></div>
+          <div class="value-en">{escv(d.get("sex",""))}</div>
+        </div>
+        <div class="info-row">
+          <div class="label-bn">In Word <span class="colon">:</span></div>
+          <div class="value-bn" style="font-style:italic">{escv(dob_words)}</div>
+          <div class="label-en"></div>
+          <div class="value-en"></div>
+        </div>
+        {pair_row("নাম","Name",d.get("name_bn",""),d.get("name_en",""))}
+        {pair_row("মাতা","Mother",d.get("mother",""),d.get("mother_en",""))}
+        {pair_row("মাতার জাতীয়তা","Mother Nationality",d.get("mother_nationality_bn","বাংলাদেশী"),d.get("mother_nationality_en","Bangladeshi"))}
+        {pair_row("পিতা","Father",d.get("father",""),d.get("father_en",d.get("father","")))}
+        {pair_row("পিতার জাতীয়তা","Father Nationality",d.get("father_nationality_bn","বাংলাদেশী"),d.get("father_nationality_en","Bangladeshi"))}
+        {pair_row("জন্মস্থান","Place of Birth",d.get("birth_place_bn",""),d.get("birth_place_en",""))}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Permanent Address / স্থায়ী ঠিকানা</div>
+      <div class="address-grid">
+        <div class="address-card">
+          <div class="address-label">স্থায়ী ঠিকানা <span class="colon">:</span></div>
+          <div class="address-value">{escv(d.get("permanent_bn",""))}</div>
+        </div>
+        <div class="address-card">
+          <div class="address-label">Permanent Address <span class="colon">:</span></div>
+          <div class="address-value" style="font-family:Arial,sans-serif">{escv(d.get("permanent_en",""))}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-note">
+        This report is generated from information entered or verified by the user.
+        It is not a government-issued certificate. Verify the underlying record through the official BDRIS service before relying on it.
+      </div>
+      <div class="footer-code">{ref_code}</div>
+    </div>
   </div>
 </div>
-</body></html>"""
+</body>
+</html>"""
 
     if WeasyHTML is not None:
         try:
@@ -1328,19 +1521,25 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:
             if out.exists() and out.stat().st_size >= 1000:
                 return out
         except Exception as e:
-            print("BIRTH REFERENCE WEASY ERROR:", repr(e))
+            print("BIRTH REPORT WEASY ERROR:", repr(e))
 
     browser = _find_browser()
     if not browser:
         raise HTTPException(500, "PDF renderer is unavailable.")
     html_path.write_text(html_doc, encoding="utf-8")
-    cmd=[browser,"--headless=new","--disable-gpu","--no-sandbox","--disable-extensions","--disable-dev-shm-usage","--no-first-run","--no-default-browser-check","--disable-background-networking","--disable-sync","--no-pdf-header-footer",f"--print-to-pdf={str(out)}",html_path.resolve().as_uri()]
-    result=subprocess.run(cmd,capture_output=True,text=True,timeout=45)
-    if result.returncode!=0 or not out.exists() or out.stat().st_size<1000:
-        cmd[1]="--headless"
-        result=subprocess.run(cmd,capture_output=True,text=True,timeout=45)
-    if result.returncode!=0 or not out.exists() or out.stat().st_size<1000:
-        raise HTTPException(500,(result.stderr or result.stdout or "PDF generation failed")[-1200:])
+    cmd = [
+        browser, "--headless=new", "--disable-gpu", "--no-sandbox",
+        "--disable-extensions", "--disable-dev-shm-usage", "--no-first-run",
+        "--no-default-browser-check", "--disable-background-networking",
+        "--disable-sync", "--no-pdf-header-footer",
+        f"--print-to-pdf={str(out)}", html_path.resolve().as_uri()
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+    if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
+        cmd[1] = "--headless"
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+    if result.returncode != 0 or not out.exists() or out.stat().st_size < 1000:
+        raise HTTPException(500, (result.stderr or result.stdout or "PDF generation failed")[-1200:])
     return out
 
 def make_pdf(d):

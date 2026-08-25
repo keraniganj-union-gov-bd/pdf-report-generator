@@ -1219,15 +1219,15 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:
 .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
 .page {{position:relative;width:210mm;height:297mm;padding:0;}}
 .content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:transparent;}}
-.qr-block {{position:absolute;left:0;top:0;width:32mm;text-align:center;}}
+.qr-block {{position:absolute;left:-7.62mm;top:0;width:32mm;text-align:center;}}
 .qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
 .ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
-.head {{position:absolute;left:32mm;right:0;top:20mm;text-align:center;}}
-.office {{font-family:Arial,sans-serif;font-weight:700;font-size:10.5pt;line-height:1.35;}}
+.head {{position:absolute;left:0;right:0;top:25.4mm;text-align:center;}}
+.office {{font-family:Arial,sans-serif;font-weight:700;font-size:13pt;line-height:1.35;white-space:nowrap;}}
 .office-bn {{font-size:11pt;font-weight:700;margin-top:1mm;}}
 .rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2mm;}}
-.title {{font-size:17pt;font-weight:700;margin-top:2mm;}}
-.notice {{display:inline-block;margin-top:2mm;padding:1.2mm 3mm;border:1px solid #777;background:#fff;font-family:Arial,sans-serif;font-size:7pt;font-weight:700;letter-spacing:.2px;}}
+.title {{font-size:13.5pt;font-weight:700;margin-top:2mm;white-space:nowrap;}}
+.notice {{display:none !important;}}
 .grid-top {{position:absolute;left:0;right:0;top:65mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
 .top-item {{font-size:8.5pt;}}
 .top-item.center {{text-align:center;}}
@@ -1236,13 +1236,13 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:
 .bio {{position:absolute;left:0;right:0;top:83mm;}}
 .bio-row {{display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:11mm;align-items:start;}}
 .bio-row.single {{grid-template-columns:38mm 1fr 43mm 1.15fr;}}
-.bio-label {{font-weight:700;padding:2.3mm 1.5mm 1.5mm 0;}}
+.bio-label {{font-weight:700;padding:2.3mm 1.5mm 1.5mm 0;display:grid;grid-template-columns:minmax(0,1fr) 3.5mm;column-gap:1mm;align-items:start;}}.bio-label .label-text {{min-width:0;}}.bio-label .colon {{text-align:center;width:3.5mm;}}
 .bio-value {{padding:2.3mm 2mm 1.5mm 0;overflow-wrap:anywhere;}}
 .bio-value.en {{font-family:Arial,sans-serif;}}
 .addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:25mm;}}
 .addr .bio-value {{white-space:pre-wrap;line-height:1.35;}}
 .bottom-note {{position:absolute;left:0;right:0;bottom:3mm;text-align:center;font-family:Arial,sans-serif;font-size:6.8pt;color:#555;}}
-.watermark {{position:absolute;left:20mm;right:20mm;top:142mm;text-align:center;font-family:Arial,sans-serif;font-size:18pt;font-weight:700;color:rgba(150,0,0,.12);transform:rotate(-24deg);pointer-events:none;}}
+.watermark {{position:absolute;left:0;right:0;bottom:2.5mm;text-align:center;font-family:Arial,sans-serif;font-size:5.5pt;font-weight:600;color:rgba(70,70,70,.75);transform:none;pointer-events:none;}}
 </style></head>
 <body>
 {bg_html}
@@ -1280,40 +1280,40 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:
 
     <div class="bio">
       <div class="bio-row">
-        <div class="bio-label">জন্ম তারিখ :</div><div class="bio-value">{esc(dob)}</div>
-        <div class="bio-label">Sex :</div><div class="bio-value en">{esc(d.get("sex",""))}</div>
+        <div class="bio-label"><span class="label-text">জন্ম তারিখ</span><span class="colon">:</span></div><div class="bio-value">{esc(dob)}</div>
+        <div class="bio-label"><span class="label-text">Sex</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("sex",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">In Word :</div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
+        <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
         <div></div><div></div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">নাম :</div><div class="bio-value">{esc(d.get("name_bn",""))}</div>
-        <div class="bio-label">Name :</div><div class="bio-value en">{esc(d.get("name_en",""))}</div>
+        <div class="bio-label"><span class="label-text">নাম</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("name_bn",""))}</div>
+        <div class="bio-label"><span class="label-text">Name</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("name_en",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">মাতা :</div><div class="bio-value">{esc(d.get("mother",""))}</div>
-        <div class="bio-label">Mother :</div><div class="bio-value en">{esc(d.get("mother_en",""))}</div>
+        <div class="bio-label"><span class="label-text">মাতা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("mother",""))}</div>
+        <div class="bio-label"><span class="label-text">Mother</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("mother_en",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">মাতার জাতীয়তা :</div><div class="bio-value">{esc(d.get("mother_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
-        <div class="bio-label">Nationality :</div><div class="bio-value en">{esc(d.get("mother_nationality_en", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label"><span class="label-text">মাতার জাতীয়তা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("mother_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label"><span class="label-text">Nationality</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("mother_nationality_en", d.get("nationality","Bangladeshi")))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">পিতা :</div><div class="bio-value">{esc(d.get("father",""))}</div>
-        <div class="bio-label">Father :</div><div class="bio-value en">{esc(d.get("father_en", d.get("father","")))}</div>
+        <div class="bio-label"><span class="label-text">পিতা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("father",""))}</div>
+        <div class="bio-label"><span class="label-text">Father</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("father_en", d.get("father","")))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">পিতার জাতীয়তা :</div><div class="bio-value">{esc(d.get("father_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
-        <div class="bio-label">Nationality :</div><div class="bio-value en">{esc(d.get("father_nationality_en", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label"><span class="label-text">পিতার জাতীয়তা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("father_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label"><span class="label-text">Nationality</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("father_nationality_en", d.get("nationality","Bangladeshi")))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">জন্মস্থান :</div><div class="bio-value">{esc(d.get("birth_place_bn", d.get("birth_place","")))}</div>
-        <div class="bio-label">Place of Birth :</div><div class="bio-value en">{esc(d.get("birth_place_en", d.get("birth_place","")))}</div>
+        <div class="bio-label"><span class="label-text">জন্মস্থান</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("birth_place_bn", d.get("birth_place","")))}</div>
+        <div class="bio-label"><span class="label-text">Place of Birth</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("birth_place_en", d.get("birth_place","")))}</div>
       </div>
       <div class="addr">
-        <div class="bio-label">স্থায়ী ঠিকানা :</div><div class="bio-value">{esc(d.get("permanent_bn",""))}</div>
-        <div class="bio-label">Permanent Address :</div><div class="bio-value en">{esc(d.get("permanent_en",""))}</div>
+        <div class="bio-label"><span class="label-text">স্থায়ী ঠিকানা</span><span class="colon">:</span></div><div class="bio-value">{esc(d.get("permanent_bn",""))}</div>
+        <div class="bio-label"><span class="label-text">Permanent Address</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("permanent_en",""))}</div>
       </div>
     </div>
 

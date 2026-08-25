@@ -1280,45 +1280,44 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:
 
     <div class="bio">
       <div class="bio-row">
-        <div class="bio-label">জন্ম তারিখ</div><div class="bio-value">{esc(dob)}</div>
-        <div class="bio-label">Sex</div><div class="bio-value en">{esc(d.get("sex",""))}</div>
+        <div class="bio-label">জন্ম তারিখ :</div><div class="bio-value">{esc(dob)}</div>
+        <div class="bio-label">Sex :</div><div class="bio-value en">{esc(d.get("sex",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">In Word</div><div class="bio-value en" style="font-style:italic">{esc(dob_words)}</div>
+        <div class="bio-label">In Word :</div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
         <div></div><div></div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">নাম</div><div class="bio-value">{esc(d.get("name_bn",""))}</div>
-        <div class="bio-label">Name</div><div class="bio-value en">{esc(d.get("name_en",""))}</div>
+        <div class="bio-label">নাম :</div><div class="bio-value">{esc(d.get("name_bn",""))}</div>
+        <div class="bio-label">Name :</div><div class="bio-value en">{esc(d.get("name_en",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">মাতা</div><div class="bio-value">{esc(d.get("mother",""))}</div>
-        <div class="bio-label">Mother</div><div class="bio-value en">{esc(d.get("mother_en",""))}</div>
+        <div class="bio-label">মাতা :</div><div class="bio-value">{esc(d.get("mother",""))}</div>
+        <div class="bio-label">Mother :</div><div class="bio-value en">{esc(d.get("mother_en",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">মাতার জাতীয়তা</div><div class="bio-value">{esc(d.get("mother_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
-        <div class="bio-label">Nationality</div><div class="bio-value en">{esc(d.get("mother_nationality_en", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label">মাতার জাতীয়তা :</div><div class="bio-value">{esc(d.get("mother_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label">Nationality :</div><div class="bio-value en">{esc(d.get("mother_nationality_en", d.get("nationality","Bangladeshi")))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">পিতা</div><div class="bio-value">{esc(d.get("father",""))}</div>
-        <div class="bio-label">Father</div><div class="bio-value en">{esc(d.get("father_en", d.get("father","")))}</div>
+        <div class="bio-label">পিতা :</div><div class="bio-value">{esc(d.get("father",""))}</div>
+        <div class="bio-label">Father :</div><div class="bio-value en">{esc(d.get("father_en", d.get("father","")))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">পিতার জাতীয়তা</div><div class="bio-value">{esc(d.get("father_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
-        <div class="bio-label">Nationality</div><div class="bio-value en">{esc(d.get("father_nationality_en", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label">পিতার জাতীয়তা :</div><div class="bio-value">{esc(d.get("father_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label">Nationality :</div><div class="bio-value en">{esc(d.get("father_nationality_en", d.get("nationality","Bangladeshi")))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label">জন্মস্থান</div><div class="bio-value">{esc(d.get("birth_place_bn", d.get("birth_place","")))}</div>
-        <div class="bio-label">Place of Birth</div><div class="bio-value en">{esc(d.get("birth_place_en", d.get("birth_place","")))}</div>
+        <div class="bio-label">জন্মস্থান :</div><div class="bio-value">{esc(d.get("birth_place_bn", d.get("birth_place","")))}</div>
+        <div class="bio-label">Place of Birth :</div><div class="bio-value en">{esc(d.get("birth_place_en", d.get("birth_place","")))}</div>
       </div>
       <div class="addr">
-        <div class="bio-label">স্থায়ী ঠিকানা</div><div class="bio-value">{esc(d.get("permanent_bn",""))}</div>
-        <div class="bio-label">Permanent Address</div><div class="bio-value en">{esc(d.get("permanent_en",""))}</div>
+        <div class="bio-label">স্থায়ী ঠিকানা :</div><div class="bio-value">{esc(d.get("permanent_bn",""))}</div>
+        <div class="bio-label">Permanent Address :</div><div class="bio-value en">{esc(d.get("permanent_en",""))}</div>
       </div>
     </div>
 
     <div class="watermark">UNOFFICIAL REFERENCE</div>
-    <div class="bottom-note">Reference generated from user-entered information. Verify the record through the official BDRIS service before relying on it.</div>
   </div>
 </div>
 </body></html>"""

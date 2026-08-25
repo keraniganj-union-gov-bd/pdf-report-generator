@@ -1170,7 +1170,7 @@ h1 {{ margin:0; font-size:19px; }}
 .notice {{ margin:5px 0 8px; padding:4px 7px; text-align:center; font-size:8px; font-weight:bold; }}
 .top {{ display:block; position:relative; }}
 .media {{ position:fixed; left:0; top:92mm; width:71.12mm; display:flex; flex-direction:column; align-items:center; z-index:2; }}
-.photo-name {{ margin-top:2mm; width:50.8mm; max-width:50.8mm; min-height:7mm; font-family:"Segoe UI","Arial",sans-serif; font-size:13px; font-weight:700; line-height:1.12; text-align:center; overflow-wrap:anywhere; word-break:break-word; white-space:normal; letter-spacing:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }}
+.photo-name {{ margin-top:2mm; width:43.18mm; max-width:43.18mm; min-height:7mm; font-family:"Segoe UI","Arial",sans-serif; font-size:13px; font-weight:700; line-height:1.12; text-align:center; overflow-wrap:anywhere; word-break:break-word; white-space:normal; letter-spacing:0; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }}
 .photo {{ width:30.48mm; height:auto; max-height:none; object-fit:contain; border:0.6pt solid #777; border-radius:2.2mm; }}
 .empty {{ display:flex; align-items:center; justify-content:center; }}
 .qr {{ width:25.4mm; height:25.4mm; margin-top:4mm; }}

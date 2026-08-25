@@ -2521,24 +2521,47 @@ async def customer_birth_reference(
     price=0 if u.get("role")=="admin" else int(prod_setting("web_price","1"))
     new_balance=prod_balance(u["id"]) if u.get("role")=="admin" else prod_charge(u["id"],price)
     # Customers never upload a background. The admin-selected Auto Birth
-    # background is used until the admin changes it.
+    # background is used until the admin changes it. If an older deployment
+    # does not yet have the optional background table, PDF generation should
+    # still work without a background.
     bg_b64 = ""
     bg_mime = "image/jpeg"
-    saved_bg = get_birth_background_db()
+    try:
+        saved_bg = get_birth_background_db()
+    except Exception as bg_err:
+        print("AUTO BIRTH BACKGROUND LOAD ERROR:", repr(bg_err))
+        saved_bg = None
     if saved_bg:
-        bg_b64 = saved_bg["data"]
-        bg_mime = saved_bg["mime"]
+        bg_b64 = saved_bg.get("data", "") or ""
+        bg_mime = saved_bg.get("mime", "image/jpeg") or "image/jpeg"
     if not dob_words.strip():
         dob_words = birth_dob_in_words(dob.strip())
     d=locals().copy()
     d.pop("web_session",None); d.pop("u",None); d.pop("price",None); d.pop("new_balance",None); d.pop("bg_b64",None); d.pop("bg_mime",None)
     try:
-        out=make_birth_reference_pdf(d,bg_b64,bg_mime)
-        save_generation(u["id"],birth_reg_no.strip(),out.name,price,person_name=name_bn.strip() or name_en.strip(),dob=dob.strip(),channel="birth-reference")
-    except Exception:
+        out = make_birth_reference_pdf(d, bg_b64, bg_mime)
+        save_generation(
+            u["id"], birth_reg_no.strip(), out.name, price,
+            person_name=name_bn.strip() or name_en.strip(),
+            dob=dob.strip(), channel="birth-reference"
+        )
+    except HTTPException:
         if price:
-            with prod_engine.begin() as c: c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),{"a":price,"u":u["id"]})
+            with prod_engine.begin() as c:
+                c.execute(
+                    text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
+                    {"a": price, "u": u["id"]}
+                )
         raise
+    except Exception as e:
+        print("AUTO BIRTH PDF ERROR:", repr(e))
+        if price:
+            with prod_engine.begin() as c:
+                c.execute(
+                    text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
+                    {"a": price, "u": u["id"]}
+                )
+        raise HTTPException(500, f"Auto Birth PDF generation failed: {str(e)[-600:]}")
     return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"Content-Disposition":f'attachment; filename="{out.name}"',"X-PDF-Charged":str(price),"X-PDF-Balance":str(new_balance)},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
 
 @app.post("/api/customer/parse")

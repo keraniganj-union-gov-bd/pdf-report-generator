@@ -516,7 +516,14 @@ async function signToServer(){
   
   try{
     const r=await fetch("/api/customer/birth-reference",{method:"POST",body:fd,credentials:"same-origin"});
-    if(!r.ok){let msg="PDF তৈরি করা যায়নি";try{const x=await r.json();msg=x.detail||msg}catch{}throw new Error(msg)}
+    if(!r.ok){
+      let msg="Auto Birth PDF তৈরি করা যায়নি";
+      try{
+        const x=await r.json();
+        if(x?.detail) msg=x.detail;
+      }catch{}
+      throw new Error(msg);
+    }
     const blob=await r.blob(); const url=URL.createObjectURL(blob);
     const a=document.createElement("a");a.href=url;a.download="Birth_Reference.pdf";document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),2000);

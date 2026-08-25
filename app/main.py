@@ -1143,8 +1143,8 @@ def _render_html_to_pdf(html_doc, out, html_path):
 def make_birth_reference_pdf(d):
     """Create a clearly marked unofficial birth-information reference PDF.
 
-    This feature accepts data entered/verified by the user. It does not
-    automate or bypass the BDRIS CAPTCHA and does not scrape the official site.
+    Data is supplied by the authenticated user/admin. This endpoint does not
+    automate CAPTCHA, scrape, or submit forms to the BDRIS verification site.
     """
     job = uuid.uuid4().hex[:12]
     brn = re.sub(r"\D", "", str(d.get("birth_no") or ""))
@@ -1173,85 +1173,79 @@ def make_birth_reference_pdf(d):
         ("In Word", d.get("dob_words", "")),
         ("Sex", d.get("sex", "")),
         ("Place of Birth", d.get("birth_place", "")),
-        ("Permanent Address", d.get("permanent_address", "")),
     ]
 
     def row(label, value):
         return f'<tr><td class="label">{esc(label)}</td><td class="value">{esc(value)}</td></tr>'
 
     rows_html = "".join(row(a, b) for a, b in rows if str(b or "").strip())
+    bg = d.get("background_data_url") or ""
+    bg_html = f'<img class="page-bg" src="{esc(bg)}">' if bg else ""
 
     html_doc = f"""<!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="bn"><head><meta charset="utf-8">
 <style>
-@page {{ size:A4; margin:12mm 13mm 13mm 13mm; }}
+@page {{ size:A4; margin:0; }}
 * {{ box-sizing:border-box; }}
-body {{ font-family:Arial,"Noto Sans Bengali",sans-serif; color:#222; font-size:12px;
-       line-height:1.35; margin:0; background:#fff; text-shadow:none !important;
+html,body {{ margin:0; padding:0; width:210mm; min-height:297mm; }}
+body {{ position:relative; font-family:Arial,"Noto Sans Bengali",sans-serif; color:#222;
+       font-size:12px; line-height:1.35; background:#fff; text-shadow:none !important;
        box-shadow:none !important; }}
+.page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm;
+            object-fit:cover; z-index:0; opacity:1; }}
+.report-content {{ position:relative; z-index:1; padding:12mm 13mm 13mm 13mm; }}
 .header {{ text-align:center; margin-bottom:8px; }}
 .header .gov {{ font-size:15px; font-weight:700; line-height:1.25; }}
 .header .office {{ font-size:14px; font-weight:700; line-height:1.25; }}
 .header .title {{ margin-top:8px; font-size:19px; font-weight:700; }}
-.notice {{ margin:7px auto 12px; padding:6px 9px; border:1px solid #d9e4ec;
-           background:#f8fbfd; text-align:center; font-size:10px; font-weight:700; }}
+.notice {{ margin:7px auto 12px; padding:6px 9px; border:1px solid rgba(80,80,80,.12);
+           background:rgba(255,255,255,.90); text-align:center; font-size:10px; font-weight:700; }}
 .topline {{ display:flex; justify-content:space-between; align-items:flex-start;
             gap:12px; margin-bottom:9px; }}
-.meta {{ flex:1; }}
+.meta {{ flex:1; background:rgba(255,255,255,.88); padding:4px 6px; }}
 .meta p {{ margin:2px 0; }}
-.qrbox {{ width:31mm; text-align:center; }}
+.qrbox {{ width:31mm; text-align:center; background:rgba(255,255,255,.88); padding:3px; }}
 .qrbox img {{ width:27mm; height:27mm; display:block; margin:0 auto 3px; }}
 .code {{ font-size:11px; font-weight:700; letter-spacing:1.4px; }}
 table {{ width:100%; border-collapse:collapse; table-layout:fixed; }}
-td {{ border:0.10pt solid rgba(60,60,60,.08); padding:5px 7px;
-      vertical-align:top; background:transparent !important; }}
+td {{ border:0.10pt solid rgba(60,60,60,.08); padding:5px 7px; vertical-align:top;
+      background:rgba(255,255,255,.88); }}
 .label {{ width:34%; font-weight:500; }}
 .value {{ font-weight:400; overflow-wrap:anywhere; }}
-.section {{ margin:8px 0 3px; padding:5px 8px; background:#c2e4eb;
+.section {{ margin:8px 0 3px; padding:5px 8px; background:rgba(194,228,235,.90);
             font-size:16px; font-weight:700; }}
-.address {{ border:0.10pt solid rgba(60,60,60,.08); min-height:38px;
-           padding:6px 7px; background:transparent !important; }}
-.footer {{ margin-top:14px; padding-top:7px; border-top:1px solid #e5edf2;
-           font-size:9px; text-align:center; color:#555; }}
-</style></head>
-<body>
+.address-title {{ margin:8px 0 3px; font-size:13px; font-weight:700; }}
+.address {{ border:0.10pt solid rgba(60,60,60,.08); min-height:38px; padding:6px 7px;
+           background:rgba(255,255,255,.88); overflow-wrap:anywhere; }}
+.footer {{ margin-top:14px; padding-top:7px; border-top:1px solid rgba(80,80,80,.12);
+           font-size:9px; text-align:center; color:#555; background:rgba(255,255,255,.80); }}
+</style></head><body>
+{bg_html}
+<div class="report-content">
 <div class="header">
   <div class="gov">Government of the People’s Republic of Bangladesh</div>
   <div class="office">Office of the Registrar, Birth and Death Registration</div>
   <div class="title">জন্ম তথ্য / Birth Information Reference</div>
 </div>
-
-<div class="notice">
-  UNOFFICIAL REFERENCE COPY — This PDF is generated from user-entered/verified information.
-  It is not an official Birth Registration Certificate.
-</div>
-
+<div class="notice">UNOFFICIAL REFERENCE COPY — This PDF is generated from user-entered/verified information. It is not an official Birth Registration Certificate.</div>
 <div class="topline">
   <div class="meta">
-    <p><b>Verification source:</b> https://everify.bdris.gov.bd/</p>
+    <p><b>Verification source:</b> {esc(official_url)}</p>
     <p><b>Reference code:</b> {esc(code)}</p>
   </div>
-  <div class="qrbox">
-    <img src="data:image/png;base64,{qr_b64}">
-    <div class="code">{esc(code)}</div>
-  </div>
+  <div class="qrbox"><img src="data:image/png;base64,{qr_b64}"><div class="code">{esc(code)}</div></div>
 </div>
-
 <table>{rows_html}</table>
-
-<div class="section">স্থায়ী ঠিকানা / Permanent Address</div>
-<div class="address">{esc(d.get("permanent_address_manual", ""))}</div>
-
-<div class="footer">
-  This reference PDF does not replace the official document issued by the
-  Government of Bangladesh. For official verification, use the BDRIS website above.
-</div>
-</body></html>"""
+<div class="section">স্থায়ী ঠিকানা</div>
+<div class="address">{esc(d.get("permanent_address_bn", ""))}</div>
+<div class="address-title">Permanent Address</div>
+<div class="address">{esc(d.get("permanent_address_en", ""))}</div>
+<div class="footer">This reference PDF does not replace the official document issued by the Government of Bangladesh. For official verification, use the BDRIS website above.</div>
+</div></body></html>"""
 
     out = GENERATED / f"Birth_Reference_{brn or 'unknown'}_{code}.pdf"
     html_path = GENERATED / f"birth_reference_{job}.html"
     return _render_html_to_pdf(html_doc, out, html_path), code
-
 
 def make_pdf(d):
     job = uuid.uuid4().hex[:12]
@@ -1267,8 +1261,8 @@ def make_pdf(d):
         f'<img class="qr" src="data:image/png;base64,{d.get("qr_b64","")}">'
         if d.get("qr_b64") else ""
     )
-    bg = selected_background_data_url()
-    bg_html = f'<img class="page-bg" src="{bg}">' if bg else ""
+    bg = d.get("background_data_url") or selected_background_data_url()
+    bg_html = f'<img class="page-bg" src="{esc(bg)}">' if bg else ""
 
     def row(label, value):
         return f'<tr><td class="label">{esc(label)}</td><td class="value">{esc(value)}</td></tr>'
@@ -2383,7 +2377,9 @@ async def customer_birth_reference(
     dob_words: str = Form(""),
     sex: str = Form(""),
     birth_place: str = Form(""),
-    permanent_address_manual: str = Form(""),
+    permanent_address_bn: str = Form(""),
+    permanent_address_en: str = Form(""),
+    background_image: UploadFile | None = File(default=None),
     web_session: str | None = Cookie(default=None),
 ):
     u = require_customer(web_session)
@@ -2393,9 +2389,27 @@ async def customer_birth_reference(
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", dob.strip()):
         raise HTTPException(400, "Date of Birth must use YYYY-MM-DD format.")
 
-    # The user must verify the record themselves on the official BDRIS site
-    # and enter/paste the resulting information here. No CAPTCHA automation
+    # The user must provide data they are authorized to use. No CAPTCHA automation
     # or official-site scraping is performed.
+    bg_data_url = ""
+    if background_image is not None and background_image.filename:
+        raw = await background_image.read()
+        if len(raw) > 8 * 1024 * 1024:
+            raise HTTPException(400, "Background image must be 8 MB or smaller.")
+        try:
+            im = Image.open(io.BytesIO(raw))
+            im.verify()
+            im = Image.open(io.BytesIO(raw)).convert("RGB")
+            if im.width < 300 or im.height < 300:
+                raise HTTPException(400, "Background image is too small. Use an image at least 300x300 pixels.")
+            buf = io.BytesIO()
+            im.save(buf, format="JPEG", quality=92, optimize=True)
+            bg_data_url = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(400, "Invalid background image.")
+
     d = {
         "birth_no": brn,
         "dob": dob.strip(),
@@ -2409,7 +2423,9 @@ async def customer_birth_reference(
         "dob_words": dob_words.strip(),
         "sex": sex.strip(),
         "birth_place": birth_place.strip(),
-        "permanent_address_manual": permanent_address_manual.strip(),
+        "permanent_address_bn": permanent_address_bn.strip(),
+        "permanent_address_en": permanent_address_en.strip(),
+        "background_data_url": bg_data_url,
     }
 
     # Use the same configured web price/credit model as the existing PDF tool.

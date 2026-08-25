@@ -175,6 +175,16 @@ def prod_init():
             )
         """))
         c.execute(text("""
+            CREATE TABLE IF NOT EXISTS web_birth_backgrounds (
+                id INTEGER PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                mime VARCHAR(100) NOT NULL,
+                data TEXT NOT NULL,
+                selected INTEGER NOT NULL DEFAULT 0,
+                created_at VARCHAR(40) NOT NULL
+            )
+        """))
+        c.execute(text("""
             CREATE TABLE IF NOT EXISTS web_payments (
                 id INTEGER PRIMARY KEY,
                 user_id INTEGER NOT NULL,
@@ -353,6 +363,25 @@ def get_default_background_db():
             "SELECT name,mime,data FROM web_backgrounds WHERE selected=1 ORDER BY id DESC"
         )).mappings().first()
     return dict(r) if r else None
+
+def set_birth_background_db(name: str, mime: str, data_b64: str):
+    with prod_engine.begin() as c:
+        c.execute(text("UPDATE web_birth_backgrounds SET selected=0"))
+        bid = _next_id(c, "web_birth_backgrounds")
+        c.execute(text(
+            "INSERT INTO web_birth_backgrounds(id,name,mime,data,selected,created_at) "
+            "VALUES(:id,:n,:m,:d,1,:t)"
+        ), {"id":bid,"n":name,"m":mime,"d":data_b64,"t":datetime.utcnow().isoformat()})
+
+
+def get_birth_background_db():
+    with prod_engine.begin() as c:
+        r = c.execute(text(
+            "SELECT name,mime,data FROM web_birth_backgrounds "
+            "WHERE selected=1 ORDER BY id DESC"
+        )).mappings().first()
+    return dict(r) if r else None
+
 
 def sync_default_background_to_local():
     bg = get_default_background_db()
@@ -1681,6 +1710,33 @@ async def admin_background(file:UploadFile=File(...), web_session: str | None=Co
     sync_default_background_to_local()
     return {"success":True,"selected":name}
 
+@app.post("/api/admin/birth-background")
+async def admin_birth_background(file: UploadFile = File(...), web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    ext = Path(file.filename or "").suffix.lower()
+    allowed = {".jpg":"image/jpeg", ".jpeg":"image/jpeg", ".png":"image/png", ".webp":"image/webp"}
+    if ext not in allowed:
+        raise HTTPException(400, "Use JPG, PNG or WEBP")
+    content = await file.read()
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(413, "Background must be 8 MB or smaller")
+    name = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(file.filename).stem).strip("._") or "birth_background"
+    name = f"{name}{ext}"
+    import base64 as _b64
+    set_birth_background_db(name, allowed[ext], _b64.b64encode(content).decode())
+    return {"success": True, "selected": name}
+
+
+@app.get("/api/admin/birth-background")
+def admin_birth_background_status(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    bg = get_birth_background_db()
+    return {"success": True, "background": {
+        "name": bg["name"] if bg else "",
+        "selected": bool(bg)
+    }}
+
+
 @app.get("/api/admin/background")
 def admin_background_status(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
@@ -2456,7 +2512,6 @@ async def customer_birth_reference(
     upazila_district_en: str = Form(""),
     permanent_bn: str = Form(""),
     permanent_en: str = Form(""),
-    background: UploadFile | None = File(default=None),
     web_session: str | None = Cookie(default=None),
 ):
     u=require_customer(web_session)
@@ -2466,18 +2521,18 @@ async def customer_birth_reference(
         raise HTTPException(400,"Date of Birth must be YYYY-MM-DD")
     price=0 if u.get("role")=="admin" else int(prod_setting("web_price","1"))
     new_balance=prod_balance(u["id"]) if u.get("role")=="admin" else prod_charge(u["id"],price)
-    bg_b64=""; bg_mime="image/jpeg"
-    if background and background.filename:
-        allowed={".jpg":"image/jpeg",".jpeg":"image/jpeg",".png":"image/png",".webp":"image/webp"}
-        ext=Path(background.filename).suffix.lower()
-        if ext not in allowed: raise HTTPException(400,"Background must be JPG, PNG or WEBP")
-        raw=await background.read()
-        if len(raw)>8*1024*1024: raise HTTPException(413,"Background image must be 8 MB or smaller")
-        bg_b64=base64.b64encode(raw).decode(); bg_mime=allowed[ext]
+    # Customers never upload a background. The admin-selected Auto Birth
+    # background is used until the admin changes it.
+    bg_b64 = ""
+    bg_mime = "image/jpeg"
+    saved_bg = get_birth_background_db()
+    if saved_bg:
+        bg_b64 = saved_bg["data"]
+        bg_mime = saved_bg["mime"]
     if not dob_words.strip():
         dob_words = birth_dob_in_words(dob.strip())
     d=locals().copy()
-    d.pop("background",None); d.pop("web_session",None); d.pop("u",None); d.pop("price",None); d.pop("new_balance",None); d.pop("bg_b64",None); d.pop("bg_mime",None)
+    d.pop("web_session",None); d.pop("u",None); d.pop("price",None); d.pop("new_balance",None); d.pop("bg_b64",None); d.pop("bg_mime",None)
     try:
         out=make_birth_reference_pdf(d,bg_b64,bg_mime)
         save_generation(u["id"],birth_reg_no.strip(),out.name,price,person_name=name_bn.strip() or name_en.strip(),dob=dob.strip(),channel="birth-reference")

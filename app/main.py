@@ -1095,18 +1095,67 @@ def selected_background_data_url():
         return ""
 
 
+
+_MONTH_NAMES = [
+    "", "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
+_ORDINALS = {
+    1:"First",2:"Second",3:"Third",4:"Fourth",5:"Fifth",6:"Sixth",7:"Seventh",
+    8:"Eighth",9:"Ninth",10:"Tenth",11:"Eleventh",12:"Twelfth",13:"Thirteenth",
+    14:"Fourteenth",15:"Fifteenth",16:"Sixteenth",17:"Seventeenth",18:"Eighteenth",
+    19:"Nineteenth",20:"Twentieth",21:"Twenty-first",22:"Twenty-second",
+    23:"Twenty-third",24:"Twenty-fourth",25:"Twenty-fifth",26:"Twenty-sixth",
+    27:"Twenty-seventh",28:"Twenty-eighth",29:"Twenty-ninth",30:"Thirtieth",31:"Thirty-first"
+}
+_UNDER_100 = [
+    "Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten",
+    "Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen",
+    "Eighteen","Nineteen"
+]
+_TENS = {20:"Twenty",30:"Thirty",40:"Forty",50:"Fifty",60:"Sixty",70:"Seventy",80:"Eighty",90:"Ninety"}
+
+def _english_number(n: int) -> str:
+    if n < 20:
+        return _UNDER_100[n]
+    if n < 100:
+        return _TENS[n] if n % 10 == 0 else _TENS[n - n % 10] + "-" + _UNDER_100[n % 10].lower()
+    if n < 1000:
+        return _UNDER_100[n // 100] + " Hundred" + ((" " + _english_number(n % 100)) if n % 100 else "")
+    if n < 1000000:
+        return _english_number(n // 1000) + " Thousand" + ((" " + _english_number(n % 1000)) if n % 1000 else "")
+    return str(n)
+
+def birth_dob_in_words(dob: str) -> str:
+    try:
+        dt = datetime.strptime(str(dob).strip(), "%Y-%m-%d")
+        return f"{_ORDINALS[dt.day]} of {_MONTH_NAMES[dt.month]} {_english_number(dt.year)}"
+    except Exception:
+        return ""
+
+def _birth_date_display(value: str) -> str:
+    value = str(value or "").strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(value, fmt).strftime("%d/%m/%Y")
+        except Exception:
+            pass
+    return value
+
 def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg"):
-    """Create a clearly marked unofficial birth-data reference PDF from user-supplied data.
-    This does not connect to or scrape BDRIS and does not automate CAPTCHA.
+    """Create a clearly marked, user-supplied birth-data reference PDF.
+    No BDRIS scraping, CAPTCHA automation, or government-record retrieval occurs.
     """
     job = uuid.uuid4().hex[:12]
     safe_no = re.sub(r"[^0-9A-Za-z_-]", "", str(d.get("birth_reg_no") or "birth-reference")) or "birth-reference"
     out = GENERATED / f"Birth_Reference_{safe_no}_{job}.pdf"
     html_path = GENERATED / f"birth_render_{job}.html"
 
+    # QR points only to the public verification homepage; it does not contain
+    # scraped government data or an impersonating verification payload.
     qr_data = "https://everify.bdris.gov.bd/"
     qr_bytes = io.BytesIO()
-    qrcode.make(qr_data).save(qr_bytes, format="PNG")
+    qrcode.make(qr_data, box_size=7, border=1).save(qr_bytes, format="PNG")
     qr_b64 = base64.b64encode(qr_bytes.getvalue()).decode()
     ref_code = ''.join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(5))
 
@@ -1118,58 +1167,132 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
         if bg:
             bg_html = f'<img class="page-bg" src="{bg}">'
 
-    def row(label, value):
-        return f'<tr><td class="label">{esc(label)}</td><td class="value">{esc(value)}</td></tr>'
+    dob_words = str(d.get("dob_words") or "").strip() or birth_dob_in_words(d.get("dob", ""))
+    dob = _birth_date_display(d.get("dob", ""))
+    reg_date = _birth_date_display(d.get("date_of_registration", ""))
+    issue_date = _birth_date_display(d.get("date_of_issuance", ""))
 
-    html_doc = f"""<!doctype html><html lang="bn"><head><meta charset="utf-8"><style>
-    @font-face {{font-family:Bangla;src:url('file://{FONT.as_posix()}');font-weight:400;}}
-    @font-face {{font-family:Bangla;src:url('file://{FONT_SEMIBOLD.as_posix()}');font-weight:700;}}
-    @page {{size:A4;margin:0;}}
-    * {{box-sizing:border-box;box-shadow:none!important;text-shadow:none!important;}}
-    body {{margin:0;padding:16mm 14mm;font-family:Bangla,Arial,sans-serif;color:#111;font-size:11.5px;line-height:1.35;}}
-    .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:fill;z-index:-1;}}
-    .wrap {{position:relative;z-index:1;background:rgba(255,255,255,.94);padding:8mm;border-radius:2mm;}}
-    .official {{text-align:center;font-weight:700;font-size:15px;line-height:1.45;}}
-    .title {{text-align:center;font-weight:700;font-size:18px;margin-top:5px;}}
-    .notice {{margin:7px auto 10px;padding:5px 9px;text-align:center;border:1px solid #aaa;background:#fff;font-weight:700;font-size:9px;}}
-    .top {{display:flex;gap:12mm;align-items:flex-start;}}
-    .details {{flex:1;min-width:0;}}
-    table {{width:100%;border-collapse:collapse;}}
-    td {{border:.35pt solid #bbb;padding:4px 6px;vertical-align:top;background:rgba(255,255,255,.96);}}
-    .label {{width:36%;font-weight:700;background:rgba(248,248,248,.96);}}
-    .value {{font-weight:400;overflow-wrap:anywhere;}}
-    .section {{margin-top:8px;margin-bottom:2px;padding:4px 7px;background:rgba(194,228,235,.92);font-size:14px;font-weight:700;}}
-    .media {{width:44mm;display:flex;flex-direction:column;align-items:center;}}
-    .photo-placeholder {{width:35mm;height:45mm;border:.6pt solid #999;display:flex;align-items:center;justify-content:center;font-size:10px;background:#fff;}}
-    .qr {{width:32mm;height:32mm;margin-top:8mm;}}
-    .ref {{font-family:Arial,sans-serif;font-weight:700;font-size:12px;letter-spacing:2px;margin-top:2mm;}}
-    .address {{border:.35pt solid #bbb;padding:6px;min-height:18mm;background:rgba(255,255,255,.96);white-space:pre-wrap;overflow-wrap:anywhere;}}
-    .footer {{margin-top:9px;text-align:center;font-size:8px;color:#555;}}
-    </style></head><body>{bg_html}<div class="wrap">
-    <div class="official">Government of the People’s Republic of Bangladesh<br>Office of the Registrar, Birth and Death Registration</div>
-    <div class="title">Birth Registration Information — Reference Copy</div>
-    <div class="notice">UNOFFICIAL REFERENCE COPY — NOT A GOVERNMENT-ISSUED CERTIFICATE</div>
-    <div class="top"><div class="details">
-      <div class="section">Birth Registration Information</div>
-      <table>
-        {row("Birth Registration Number", d.get("birth_reg_no"))}
-        {row("Date of Birth", d.get("dob"))}
-        {row("Date of Registration", d.get("date_of_registration"))}
-        {row("Date of Issuance", d.get("date_of_issuance"))}
-        {row("Name (Bangla)", d.get("name_bn"))}
-        {row("Name (English)", d.get("name_en"))}
-        {row("Father's Name", d.get("father"))}
-        {row("Mother's Name", d.get("mother"))}
-        {row("Nationality", d.get("nationality"))}
-        {row("Date of Birth in Words", d.get("dob_words"))}
-        {row("Sex", d.get("sex"))}
-        {row("Place of Birth", d.get("birth_place"))}
-      </table>
-    </div><div class="media"><div class="photo-placeholder">Photo</div><img class="qr" src="data:image/png;base64,{qr_b64}"><div class="ref">{ref_code}</div></div></div>
-    <div class="section">স্থায়ী ঠিকানা</div><div class="address">{esc(d.get("permanent_bn"))}</div>
-    <div class="section">Permanent Address</div><div class="address">{esc(d.get("permanent_en"))}</div>
-    <div class="footer">Verification reference: https://everify.bdris.gov.bd/ &nbsp; | &nbsp; Reference code: {ref_code}</div>
-    </div></body></html>"""
+    def cell(label_bn, label_en, value):
+        return (
+            f'<div class="bi-label"><div class="bn">{esc(label_bn)}</div><div class="en">{esc(label_en)}</div></div>'
+            f'<div class="bi-value">{esc(value)}</div>'
+        )
+
+    html_doc = f"""<!doctype html>
+<html lang="bn"><head><meta charset="utf-8">
+<style>
+@font-face {{font-family:Bangla;src:url('file://{FONT.as_posix()}');font-weight:400;}}
+@font-face {{font-family:Bangla;src:url('file://{FONT_SEMIBOLD.as_posix()}');font-weight:700;}}
+@page {{size:A4;margin:0;}}
+* {{box-sizing:border-box;box-shadow:none!important;text-shadow:none!important;}}
+html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
+body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:10.7pt;line-height:1.18;}}
+.page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
+.page {{position:relative;width:210mm;height:297mm;padding:0;}}
+.content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:rgba(255,255,255,.94);}}
+.qr-block {{position:absolute;left:0;top:0;width:32mm;text-align:center;}}
+.qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
+.ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
+.head {{position:absolute;left:32mm;right:0;top:20mm;text-align:center;}}
+.office {{font-family:Arial,sans-serif;font-weight:700;font-size:10.5pt;line-height:1.35;}}
+.office-bn {{font-size:11pt;font-weight:700;margin-top:1mm;}}
+.rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2mm;}}
+.title {{font-size:17pt;font-weight:700;margin-top:2mm;}}
+.notice {{display:inline-block;margin-top:2mm;padding:1.2mm 3mm;border:1px solid #777;background:#fff;font-family:Arial,sans-serif;font-size:7pt;font-weight:700;letter-spacing:.2px;}}
+.grid-top {{position:absolute;left:0;right:0;top:65mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
+.top-item {{font-size:8.5pt;}}
+.top-item.center {{text-align:center;}}
+.top-label {{font-weight:700;}}
+.top-value {{margin-top:1.5mm;font-size:9.5pt;}}
+.bio {{position:absolute;left:0;right:0;top:83mm;}}
+.bio-row {{display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:11mm;align-items:start;}}
+.bio-row.single {{grid-template-columns:38mm 1fr 43mm 1.15fr;}}
+.bio-label {{font-weight:700;padding:2.3mm 1.5mm 1.5mm 0;}}
+.bio-value {{padding:2.3mm 2mm 1.5mm 0;overflow-wrap:anywhere;}}
+.bio-value.en {{font-family:Arial,sans-serif;}}
+.addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:25mm;}}
+.addr .bio-value {{white-space:pre-wrap;line-height:1.35;}}
+.bottom-note {{position:absolute;left:0;right:0;bottom:3mm;text-align:center;font-family:Arial,sans-serif;font-size:6.8pt;color:#555;}}
+.watermark {{position:absolute;left:20mm;right:20mm;top:142mm;text-align:center;font-family:Arial,sans-serif;font-size:18pt;font-weight:700;color:rgba(150,0,0,.12);transform:rotate(-24deg);pointer-events:none;}}
+</style></head>
+<body>
+{bg_html}
+<div class="page">
+  <div class="content">
+    <div class="qr-block">
+      <img class="qr" src="data:image/png;base64,{qr_b64}">
+      <div class="ref">{ref_code}</div>
+    </div>
+
+    <div class="head">
+      <div class="office">Government of the People’s Republic of Bangladesh</div>
+      <div class="office">Office of the Registrar, Birth and Death Registration</div>
+      <div class="office-bn">{esc(d.get("union_en",""))}</div>
+      <div class="office-bn">{esc(d.get("upazila_district_en",""))}</div>
+      <div class="rule">(Rule 9, 10)</div>
+      <div class="title">জন্ম নিবন্ধন সনদ / Birth Registration Certificate</div>
+      <div class="notice">UNOFFICIAL REFERENCE COPY — NOT A GOVERNMENT-ISSUED CERTIFICATE</div>
+    </div>
+
+    <div class="grid-top">
+      <div class="top-item">
+        <div class="top-label">Date of Registration</div>
+        <div class="top-value">{esc(reg_date)}</div>
+      </div>
+      <div class="top-item center">
+        <div class="top-label">Birth Registration Number</div>
+        <div class="top-value">{esc(d.get("birth_reg_no",""))}</div>
+      </div>
+      <div class="top-item center">
+        <div class="top-label">Date of Issuance</div>
+        <div class="top-value">{esc(issue_date)}</div>
+      </div>
+    </div>
+
+    <div class="bio">
+      <div class="bio-row">
+        <div class="bio-label">জন্ম তারিখ</div><div class="bio-value">{esc(dob)}</div>
+        <div class="bio-label">Sex</div><div class="bio-value en">{esc(d.get("sex",""))}</div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">In Word</div><div class="bio-value en" style="font-style:italic">{esc(dob_words)}</div>
+        <div></div><div></div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">নাম</div><div class="bio-value">{esc(d.get("name_bn",""))}</div>
+        <div class="bio-label">Name</div><div class="bio-value en">{esc(d.get("name_en",""))}</div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">মাতা</div><div class="bio-value">{esc(d.get("mother",""))}</div>
+        <div class="bio-label">Mother</div><div class="bio-value en">{esc(d.get("mother_en",""))}</div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">মাতার জাতীয়তা</div><div class="bio-value">{esc(d.get("mother_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label">Nationality</div><div class="bio-value en">{esc(d.get("mother_nationality_en", d.get("nationality","Bangladeshi")))}</div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">পিতা</div><div class="bio-value">{esc(d.get("father",""))}</div>
+        <div class="bio-label">Father</div><div class="bio-value en">{esc(d.get("father_en", d.get("father","")))}</div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">পিতার জাতীয়তা</div><div class="bio-value">{esc(d.get("father_nationality_bn", d.get("nationality","Bangladeshi")))}</div>
+        <div class="bio-label">Nationality</div><div class="bio-value en">{esc(d.get("father_nationality_en", d.get("nationality","Bangladeshi")))}</div>
+      </div>
+      <div class="bio-row">
+        <div class="bio-label">জন্মস্থান</div><div class="bio-value">{esc(d.get("birth_place_bn", d.get("birth_place","")))}</div>
+        <div class="bio-label">Place of Birth</div><div class="bio-value en">{esc(d.get("birth_place_en", d.get("birth_place","")))}</div>
+      </div>
+      <div class="addr">
+        <div class="bio-label">স্থায়ী ঠিকানা</div><div class="bio-value">{esc(d.get("permanent_bn",""))}</div>
+        <div class="bio-label">Permanent Address</div><div class="bio-value en">{esc(d.get("permanent_en",""))}</div>
+      </div>
+    </div>
+
+    <div class="watermark">UNOFFICIAL REFERENCE</div>
+    <div class="bottom-note">Reference generated from user-entered information. Verify the record through the official BDRIS service before relying on it.</div>
+  </div>
+</div>
+</body></html>"""
 
     if WeasyHTML is not None:
         try:
@@ -1178,6 +1301,7 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
                 return out
         except Exception as e:
             print("BIRTH REFERENCE WEASY ERROR:", repr(e))
+
     browser = _find_browser()
     if not browser:
         raise HTTPException(500, "PDF renderer is unavailable.")
@@ -1185,7 +1309,8 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
     cmd=[browser,"--headless=new","--disable-gpu","--no-sandbox","--disable-extensions","--disable-dev-shm-usage","--no-first-run","--no-default-browser-check","--disable-background-networking","--disable-sync","--no-pdf-header-footer",f"--print-to-pdf={str(out)}",html_path.resolve().as_uri()]
     result=subprocess.run(cmd,capture_output=True,text=True,timeout=45)
     if result.returncode!=0 or not out.exists() or out.stat().st_size<1000:
-        cmd[1]="--headless"; result=subprocess.run(cmd,capture_output=True,text=True,timeout=45)
+        cmd[1]="--headless"
+        result=subprocess.run(cmd,capture_output=True,text=True,timeout=45)
     if result.returncode!=0 or not out.exists() or out.stat().st_size<1000:
         raise HTTPException(500,(result.stderr or result.stdout or "PDF generation failed")[-1200:])
     return out
@@ -2314,11 +2439,21 @@ async def customer_birth_reference(
     name_bn: str = Form(""),
     name_en: str = Form(""),
     father: str = Form(""),
+    father_en: str = Form(""),
     mother: str = Form(""),
+    mother_en: str = Form(""),
     nationality: str = Form("Bangladeshi"),
+    father_nationality_bn: str = Form(""),
+    father_nationality_en: str = Form(""),
+    mother_nationality_bn: str = Form(""),
+    mother_nationality_en: str = Form(""),
     dob_words: str = Form(""),
     sex: str = Form(""),
     birth_place: str = Form(""),
+    birth_place_bn: str = Form(""),
+    birth_place_en: str = Form(""),
+    union_en: str = Form(""),
+    upazila_district_en: str = Form(""),
     permanent_bn: str = Form(""),
     permanent_en: str = Form(""),
     background: UploadFile | None = File(default=None),
@@ -2339,6 +2474,8 @@ async def customer_birth_reference(
         raw=await background.read()
         if len(raw)>8*1024*1024: raise HTTPException(413,"Background image must be 8 MB or smaller")
         bg_b64=base64.b64encode(raw).decode(); bg_mime=allowed[ext]
+    if not dob_words.strip():
+        dob_words = birth_dob_in_words(dob.strip())
     d=locals().copy()
     d.pop("background",None); d.pop("web_session",None); d.pop("u",None); d.pop("price",None); d.pop("new_balance",None); d.pop("bg_b64",None); d.pop("bg_mime",None)
     try:

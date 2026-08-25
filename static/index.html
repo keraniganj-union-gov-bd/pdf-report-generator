@@ -26,6 +26,17 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
 .loading-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px}.spinner{width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:800px){.form-grid,.grid3{grid-template-columns:1fr}.content{padding:14px}.side{width:230px}.main{margin-left:230px}}
 @media(max-width:650px){.side{transform:translateX(-105%);width:min(82vw,290px);box-shadow:12px 0 30px rgba(23,52,79,.10)}.side.open{transform:translateX(0)}.main{margin-left:0}.menu-overlay.open{display:block}.mobile-menu-btn{display:inline-grid;place-items:center}.top{height:62px;padding:0 12px}.content{padding:12px}.row{flex-direction:column;align-items:stretch}.row button{width:100%}.actions{flex-direction:column}.actions button{width:100%}.grid3{gap:8px}.card{padding:15px}.brand{padding:18px}.announcement-track{animation-duration:55s}.tbl th,.tbl td{padding:8px 7px}.badge{font-size:11px;padding:6px 9px}.paybox{padding:13px}}
+
+/* Auto Birth Reference form */
+.birth-reference-form{display:block}
+.birth-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:4px 0 8px}
+.birth-three-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.birth-pair-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.birth-address-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.birth-help{font-size:12px;color:#6a7f92;line-height:1.55}
+.birth-section-title{font-size:15px;font-weight:800;margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid #e2ebf3;color:#17344f}
+.birth-action-row{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px}
+@media(max-width:800px){.birth-three-grid,.birth-pair-grid,.birth-address-grid,.birth-top-grid{grid-template-columns:1fr}.birth-reference-form{overflow:hidden}}
 </style>
 </head>
 <body>
@@ -176,36 +187,96 @@ file=&lt;source.pdf&gt;</pre><p style="margin-top:12px">Response: সরাস�
       <section id="pricing" class="card page hidden"><h2>Pricing</h2><p>Customer প্রতি PDF generation-এর charge।</p><div class="row"><input id="price" type="number" min="0"><button class="btn" onclick="savePrice()">Save Price</button></div></section>
 
       <section id="birthReference" class="card page hidden">
-        <h2>Auto Birth Pdf Make</h2>
-        <p>BDRIS থেকে তথ্য স্বয়ংক্রিয়ভাবে সংগ্রহ করা হয় না। User/Admin official verification করে পাওয়া তথ্য এই form-এ বসিয়ে reference PDF তৈরি করতে পারবেন। CAPTCHA এই application নিজে solve বা bypass করে না।</p>
-        <div class="paybox">
-          <div class="row" style="justify-content:space-between;align-items:flex-start;gap:12px">
-            <div style="flex:1"><b>Official verification</b><br><small>17 digit Birth Registration Number ও DOB দিয়ে official verification করুন।</small></div>
-            <a class="btn secondary" href="https://everify.bdris.gov.bd/" target="_blank" rel="noopener noreferrer">Open BDRIS</a>
-          </div>
-        </div>
-        <div class="form-grid">
-          <div class="field"><label>Birth Registration Number (17 digit)</label><input id="birthRegNo" inputmode="numeric" maxlength="17" placeholder="17 digit number"></div>
-          <div class="field"><label>Date of Birth (YYYY-MM-DD)</label><input id="birthDob" type="date"></div>
-          <div class="field"><label>Date of Registration</label><input id="birthRegDate" type="date"></div>
-          <div class="field"><label>Date of Issuance</label><input id="birthIssueDate" type="date"></div>
-          <div class="field"><label>Name (Bangla)</label><input id="birthNameBn"></div>
-          <div class="field"><label>Name (English)</label><input id="birthNameEn"></div>
-          <div class="field"><label>Father's Name</label><input id="birthFather"></div>
-          <div class="field"><label>Mother's Name</label><input id="birthMother"></div>
-          <div class="field"><label>Nationality</label><input id="birthNationality" value="Bangladeshi"></div>
-          <div class="field"><label>Date of Birth in Words</label><input id="birthDobWords"></div>
-          <div class="field"><label>Sex</label><input id="birthSex"></div>
-          <div class="field"><label>Place of Birth</label><input id="birthPlace"></div>
-          <div class="field wide"><label>স্থায়ী ঠিকানা (বাংলা)</label><textarea id="birthPermanentBn" rows="3" placeholder="বাংলায় স্থায়ী ঠিকানা"></textarea></div>
-          <div class="field wide"><label>Permanent Address (English)</label><textarea id="birthPermanentEn" rows="3" placeholder="Permanent address in English"></textarea></div>
-          <div class="field wide"><label>PDF Background Image (optional)</label><input id="birthBackground" type="file" accept=".jpg,.jpeg,.png,.webp"><small style="display:block;margin-top:5px;color:#6a7f92">এই image শুধু এই PDF-এর background হিসেবে ব্যবহার হবে।</small></div>
-        </div>
-        <div class="actions"><button class="btn secondary" onclick="clearBirthReference()">Clear</button><button id="birthSignBtn" class="btn" onclick="signToServer()">Sign to Server</button></div>
-        <div id="birthStatus" class="status">তথ্য পূরণ করে Sign to Server চাপুন।</div>
-      </section>
+  <h2>Auto Birth Pdf Make</h2>
+  <p class="birth-help">
+    Official BDRIS verification থেকে পাওয়া তথ্য অথবা আপনার নিজস্ব verified data এখানে manually enter করুন।
+    এই application BDRIS CAPTCHA solve, bypass বা scrape করে না। PDFটি clearly marked <b>UNOFFICIAL REFERENCE COPY</b>।
+  </p>
 
-      <section id="customerHome" class="card page hidden"><h2>সাইন কপি আপলোড করে তথ্য যাচাই বাটনে ক্লিক করুন</h2><p>Source PDF upload করুন। তারপর তথ্য যাচাই করে PDF তৈরি করুন।</p><div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div><div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div></section>
+  <div class="paybox birth-reference-form">
+    <div class="birth-section-title">Verification Reference</div>
+    <div class="birth-top-grid">
+      <div class="field">
+        <label>Birth Registration Number (17 digit)</label>
+        <input id="birthRegNo" inputmode="numeric" maxlength="17" placeholder="01234567890123456">
+      </div>
+      <div class="field">
+        <label>Date of Birth (YYYY-MM-DD)</label>
+        <input id="birthDob" type="date">
+      </div>
+    </div>
+    <div class="birth-action-row">
+      <button class="btn secondary" type="button" onclick="openBirthVerification()">Next — Open Official Verification</button>
+    </div>
+  </div>
+
+  <div class="paybox birth-reference-form">
+    <div class="birth-section-title">Birth Information</div>
+
+    <div class="birth-three-grid">
+      <div class="field"><label>ইউনিয়ন/পৌরসভার নাম। (ইংরেজীতে)</label><input id="birthUnionEn"></div>
+      <div class="field"><label>উপজেলা এবং জেলার নাম। (ইংরেজীতে)</label><input id="birthUpazilaDistrictEn"></div>
+      <div class="field"><label>Rule</label><input value="(Rule 9, 10)" readonly></div>
+    </div>
+
+    <div class="birth-three-grid">
+      <div class="field"><label>Date of Registration</label><input id="birthRegDate" type="date"></div>
+      <div class="field"><label>Birth Registration Number</label><input id="birthRegNoCopy" inputmode="numeric" maxlength="17" placeholder="17 digit number"></div>
+      <div class="field"><label>Date of Issuance</label><input id="birthIssueDate" type="date"></div>
+    </div>
+
+    <div class="birth-pair-grid">
+      <div class="field"><label>জন্ম তারিখ / Date of Birth</label><input id="birthDobCopy" type="date"></div>
+      <div class="field"><label>Sex</label><input id="birthSex" placeholder="Female / Male"></div>
+    </div>
+
+    <div class="field"><label>In Word</label><input id="birthDobWords" placeholder="Auto-generated from Date of Birth"></div>
+
+    <div class="birth-section-title">Personal Information — বাংলা / English</div>
+    <div class="birth-pair-grid">
+      <div class="field"><label>নাম (বাংলা)</label><input id="birthNameBn"></div>
+      <div class="field"><label>Name (English)</label><input id="birthNameEn"></div>
+      <div class="field"><label>মাতা (বাংলা)</label><input id="birthMother"></div>
+      <div class="field"><label>Mother (English)</label><input id="birthMotherEn"></div>
+      <div class="field"><label>মাতার জাতীয়তা (বাংলা)</label><input id="birthMotherNationalityBn" value="বাংলাদেশী"></div>
+      <div class="field"><label>Mother Nationality</label><input id="birthMotherNationalityEn" value="Bangladeshi"></div>
+      <div class="field"><label>পিতা (বাংলা)</label><input id="birthFather"></div>
+      <div class="field"><label>Father (English)</label><input id="birthFatherEn"></div>
+      <div class="field"><label>পিতার জাতীয়তা (বাংলা)</label><input id="birthFatherNationalityBn" value="বাংলাদেশী"></div>
+      <div class="field"><label>Father Nationality</label><input id="birthFatherNationalityEn" value="Bangladeshi"></div>
+      <div class="field"><label>জন্মস্থান (বাংলা)</label><input id="birthPlaceBn"></div>
+      <div class="field"><label>Place of Birth (English)</label><input id="birthPlaceEn"></div>
+    </div>
+
+    <div class="birth-section-title">Permanent Address</div>
+    <div class="birth-address-grid">
+      <div class="field"><label>স্থায়ী ঠিকানা (বাংলা)</label><textarea id="birthPermanentBn" rows="5" placeholder="বাংলায় স্থায়ী ঠিকানা"></textarea></div>
+      <div class="field"><label>Permanent Address (English)</label><textarea id="birthPermanentEn" rows="5" placeholder="Permanent address in English"></textarea></div>
+    </div>
+
+    <div class="birth-section-title">PDF Background</div>
+    <div class="birth-address-grid">
+      <div class="field">
+        <label>Background Image for this PDF (optional)</label>
+        <input id="birthBackground" type="file" accept=".jpg,.jpeg,.png,.webp">
+        <div class="birth-help">এখানে image দিলে শুধু এই PDF-তে ব্যবহার হবে। কোনো image না দিলে Admin-এর সর্বশেষ saved Default Background ব্যবহার হবে।</div>
+      </div>
+      <div class="paybox">
+        <b>Admin Default Background</b>
+        <div id="birthDefaultBgName" class="birth-help" style="margin-top:6px">Loading...</div>
+        <div class="birth-help">Admin Background menu থেকে image পরিবর্তন না করা পর্যন্ত সেটি সব Auto Birth Reference PDF-তে default হিসেবে থাকবে।</div>
+      </div>
+    </div>
+
+    <div class="birth-action-row">
+      <button class="btn secondary" onclick="clearBirthReference()">Clear</button>
+      <button id="birthSignBtn" class="btn" onclick="signToServer()">Sign to Server</button>
+    </div>
+    <div id="birthStatus" class="status">তথ্য পূরণ করে Sign to Server চাপুন।</div>
+  </div>
+</section>
+
+<section id="customerHome" class="card page hidden"><h2>সাইন কপি আপলোড করে তথ্য যাচাই বাটনে ক্লিক করুন</h2><p>Source PDF upload করুন। তারপর তথ্য যাচাই করে PDF তৈরি করুন।</p><div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div><div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div></section>
       <section id="customerData" class="card page hidden"><h2>তথ্য যাচাই</h2><p>PDF তৈরি করার আগে প্রয়োজন হলে তথ্য edit করুন।</p><div id="dataForm" class="form-grid"></div><div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button id="generateBtn" class="btn" onclick="generatePdf()">PDF তৈরি করুন</button></div></section>
 
       <section id="buyCredits" class="card page hidden">
@@ -239,7 +310,7 @@ function toggleMenu(){const side=$("sideNav");side.classList.toggle("open");$("m
 function closeMenu(){$("sideNav")?.classList.remove("open");$("menuOverlay")?.classList.remove("open")}
 function navItem(label,id){const b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;loadForPage(id)};return b}
 function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Generate PDF","customerHome"),navItem("Auto Birth Pdf Make","birthReference"),navItem("Make History","makeHistory"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Default Background","background"),navItem("Pricing","pricing"),navItem("API Management","apiManagement"),navItem("API Request History","apiRequests"));}else{n.append(navItem("Generate PDF","customerHome"),navItem("Auto Birth Pdf Make","birthReference"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
-async function loadForPage(id){if(id==="birthReference")loadBirthReference();if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="apiManagement")await loadApiManagement();if(id==="apiRequests")await loadApiRequests();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
+async function loadForPage(id){if(id==="birthReference"){loadBirthReference();loadBirthDefaultBg();}if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="pricing")await loadAdmin();if(id==="apiManagement")await loadApiManagement();if(id==="apiRequests")await loadApiRequests();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
 async function login(e){e.preventDefault();$("loginError").classList.add("hidden");const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);try{const r=await fetch("/api/auth/login",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok){throw new Error(x.detail||"Login failed")}await boot()}catch(e){$("loginError").textContent=e.message;$("loginError").classList.remove("hidden")}}
 async function register(e){e.preventDefault();$("regError").classList.add("hidden");const fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);try{const r=await fetch("/api/auth/register",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Registration failed");await boot()}catch(e){$("regError").textContent=e.message;$("regError").classList.remove("hidden")}}
 async function boot(){try{const r=await fetch("/api/auth/me",{credentials:"same-origin"});if(!r.ok){showAuth("login");return}const x=await r.json();me=x.user;$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();const first=me.role==="admin"?"adminDashboard":"customerHome";show(first);$("title").textContent=me.role==="admin"?"Dashboard":"Generate PDF";await loadForPage(first);await loadAnnouncement(false)}catch(e){console.error(e)}}
@@ -393,26 +464,70 @@ async function approvePayment(id){if(!confirm("এই payment verify করে a
 async function rejectPayment(id){if(!confirm("এই payment request reject করবেন?"))return;const r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await loadAdminPayments()}
 async function savePaymentSettings(){const n=$("adminBkashNumber").value.trim();const price=$("adminWebPrice").value;try{const fd=new FormData();fd.append("bkash_number",n);const r=await fetch("/api/admin/bkash",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"bKash save failed");const fp=new FormData();fp.append("web_price",price);const rp=await fetch("/api/admin/price",{method:"POST",body:fp,credentials:"same-origin"});const xp=await rp.json();if(!rp.ok)throw new Error(xp.detail||"Price save failed");$("paymentSettingsStatus").textContent="Settings saved successfully.";await loadStatus()}catch(e){$("paymentSettingsStatus").textContent=e.message}}
 function loadBirthReference(){}
+function syncBirthTopFields(){
+  const a=$("birthRegNo"), b=$("birthRegNoCopy"), d=$("birthDob"), dc=$("birthDobCopy");
+  if(a&&b){b.value=a.value; b.oninput=()=>a.value=b.value;}
+  if(d&&dc){dc.value=d.value; dc.onchange=()=>{d.value=dc.value; autoBirthWords();};}
+}
+function autoBirthWords(){
+  const d=$("birthDob")?.value;
+  const out=$("birthDobWords");
+  if(!d||!out)return;
+  const [y,m,day]=d.split("-").map(Number);
+  const ord=["","First","Second","Third","Fourth","Fifth","Sixth","Seventh","Eighth","Ninth","Tenth","Eleventh","Twelfth","Thirteenth","Fourteenth","Fifteenth","Sixteenth","Seventeenth","Eighteenth","Nineteenth","Twentieth","Twenty-first","Twenty-second","Twenty-third","Twenty-fourth","Twenty-fifth","Twenty-sixth","Twenty-seventh","Twenty-eighth","Twenty-ninth","Thirtieth","Thirty-first"];
+  const months=["","January","February","March","April","May","June","July","August","September","October","November","December"];
+  const small=["Zero","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+  const tens={20:"Twenty",30:"Thirty",40:"Forty",50:"Fifty",60:"Sixty",70:"Seventy",80:"Eighty",90:"Ninety"};
+  function num(n){if(n<20)return small[n];if(n<100)return n%10?tens[n-n%10]+"-"+small[n%10].toLowerCase():tens[n];if(n<1000)return small[Math.floor(n/100)]+" Hundred"+(n%100?" "+num(n%100):"");return num(Math.floor(n/1000))+" Thousand"+(n%1000?" "+num(n%1000):"")}
+  out.value=ord[day]+" of "+months[m]+" "+num(y);
+}
+function openBirthVerification(){
+  const no=$("birthRegNo").value.trim(), dob=$("birthDob").value;
+  if(!/^\d{17}$/.test(no))return $("birthStatus").textContent="Birth Registration Number অবশ্যই 17 digit হতে হবে।";
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dob))return $("birthStatus").textContent="DOB অবশ্যই YYYY-MM-DD format হতে হবে।";
+  $("birthStatus").textContent="Official BDRIS verification page opened. CAPTCHA and verification must be completed there manually.";
+  window.open("https://everify.bdris.gov.bd/","_blank","noopener,noreferrer");
+}
 function clearBirthReference(){
-  ["birthRegNo","birthDob","birthRegDate","birthIssueDate","birthNameBn","birthNameEn","birthFather","birthMother","birthDobWords","birthSex","birthPlace","birthPermanentBn","birthPermanentEn"].forEach(id=>{const e=$(id);if(e)e.value=""});
-  $("birthNationality").value="Bangladeshi"; $("birthBackground").value=""; $("birthStatus").textContent="তথ্য পূরণ করে Sign to Server চাপুন।";
+  ["birthRegNo","birthRegNoCopy","birthDob","birthDobCopy","birthRegDate","birthIssueDate","birthUnionEn","birthUpazilaDistrictEn","birthNameBn","birthNameEn","birthFather","birthFatherEn","birthMother","birthMotherEn","birthMotherNationalityBn","birthMotherNationalityEn","birthFatherNationalityBn","birthFatherNationalityEn","birthPlaceBn","birthPlaceEn","birthDobWords","birthSex","birthPermanentBn","birthPermanentEn"].forEach(id=>{const e=$(id);if(e)e.value=""});
+  $("birthMotherNationalityBn").value="বাংলাদেশী"; $("birthMotherNationalityEn").value="Bangladeshi";
+  $("birthFatherNationalityBn").value="বাংলাদেশী"; $("birthFatherNationalityEn").value="Bangladeshi";
+  $("birthBackground").value=""; $("birthStatus").textContent="তথ্য পূরণ করে Sign to Server চাপুন.";
 }
 async function signToServer(){
   const no=$("birthRegNo").value.trim(), dob=$("birthDob").value;
   if(!/^\d{17}$/.test(no))return $("birthStatus").textContent="Birth Registration Number অবশ্যই 17 digit হতে হবে।";
   if(!/^\d{4}-\d{2}-\d{2}$/.test(dob))return $("birthStatus").textContent="DOB অবশ্যই YYYY-MM-DD format হতে হবে।";
-  const btn=$("birthSignBtn"); btn.disabled=true; $("birthStatus").textContent="PDF তৈরি হচ্ছে…";
+  syncBirthTopFields(); autoBirthWords();
+  const btn=$("birthSignBtn"); btn.disabled=true; $("birthStatus").textContent="Reference PDF তৈরি হচ্ছে…";
   const fd=new FormData();
-  const map={birthRegNo:"birth_reg_no",birthDob:"dob",birthRegDate:"date_of_registration",birthIssueDate:"date_of_issuance",birthNameBn:"name_bn",birthNameEn:"name_en",birthFather:"father",birthMother:"mother",birthNationality:"nationality",birthDobWords:"dob_words",birthSex:"sex",birthPlace:"birth_place",birthPermanentBn:"permanent_bn",birthPermanentEn:"permanent_en"};
-  Object.entries(map).forEach(([id,key])=>fd.append(key,$(id).value.trim()));
+  const map={
+    birthRegNo:"birth_reg_no",birthDob:"dob",birthRegDate:"date_of_registration",birthIssueDate:"date_of_issuance",
+    birthUnionEn:"union_en",birthUpazilaDistrictEn:"upazila_district_en",
+    birthNameBn:"name_bn",birthNameEn:"name_en",birthFather:"father",birthFatherEn:"father_en",
+    birthMother:"mother",birthMotherEn:"mother_en",birthNationality:"nationality",
+    birthFatherNationalityBn:"father_nationality_bn",birthFatherNationalityEn:"father_nationality_en",
+    birthMotherNationalityBn:"mother_nationality_bn",birthMotherNationalityEn:"mother_nationality_en",
+    birthDobWords:"dob_words",birthSex:"sex",birthPlaceBn:"birth_place_bn",birthPlaceEn:"birth_place_en",
+    birthPermanentBn:"permanent_bn",birthPermanentEn:"permanent_en"
+  };
+  Object.entries(map).forEach(([id,key])=>fd.append(key,($(id)?.value||"").trim()));
   const bg=$("birthBackground").files[0]; if(bg)fd.append("background",bg);
   try{
     const r=await fetch("/api/customer/birth-reference",{method:"POST",body:fd,credentials:"same-origin"});
     if(!r.ok){let msg="PDF তৈরি করা যায়নি";try{const x=await r.json();msg=x.detail||msg}catch{}throw new Error(msg)}
-    const blob=await r.blob(); const url=URL.createObjectURL(blob); const a=document.createElement("a");a.href=url;a.download="Birth_Reference.pdf";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
-    $("birthStatus").textContent="PDF তৈরি হয়েছে এবং download শুরু হয়েছে।";
+    const blob=await r.blob(); const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download="Birth_Reference.pdf";document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    $("birthStatus").textContent="Reference PDF তৈরি হয়েছে এবং download শুরু হয়েছে।";
     await boot();
   }catch(e){$("birthStatus").textContent=e.message||"PDF তৈরি করা যায়নি"}finally{btn.disabled=false}
+}
+async function loadBirthDefaultBg(){
+  const r=await fetch("/api/admin/background",{credentials:"same-origin"});
+  if(!r.ok){$("birthDefaultBgName").textContent="Admin default background unavailable";return}
+  const x=await r.json();
+  $("birthDefaultBgName").textContent=x.background?.name||"No admin default background set";
 }
 async function setBackground(){const f=$("bg").files[0];if(!f)return alert("Background photo নির্বাচন করুন");const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/background",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("bgStatus").textContent=r.ok?"Default Background set: "+x.selected:(x.detail||"Upload failed");if(r.ok)$("backgroundName").textContent=x.selected}
 async function loadBg(){const r=await fetch("/api/admin/background",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const name=x.background?.name||"None";$("bgStatus").textContent=x.background?.name?"Current Default: "+name:"No default background set";$("backgroundName").textContent=name}
@@ -421,7 +536,10 @@ async function loadAnnouncement(showAdmin){const r=await fetch(showAdmin?"/api/a
 async function saveAnnouncement(){const fd=new FormData();fd.append("message",$("adminAnnouncement").value);const r=await fetch("/api/admin/announcement",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return $("announcementStatus").textContent=x.detail||"Save failed";$("announcementStatus").textContent="Message saved.";await loadAnnouncement(false)}
 async function loadProfile(){const r=await fetch("/api/user/profile",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("profileEmail").value=x.user.email||"";$("profileName").value=x.user.full_name||"";$("profileMobile").value=x.user.mobile||"";await loadStatus()}
 async function saveProfile(){const fd=new FormData();fd.append("full_name",$("profileName").value.trim());fd.append("mobile",$("profileMobile").value.trim());fd.append("new_password",$("profilePassword").value);const r=await fetch("/api/user/profile",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("profileStatus").textContent=r.ok?x.message:(x.detail||"Save failed");if(r.ok)$("profilePassword").value=""}
-$("loginForm").addEventListener("submit",login);$("registerForm").addEventListener("submit",register);boot();
+$("loginForm").addEventListener("submit",login);$("registerForm").addEventListener("submit",register);
+document.addEventListener("input",e=>{if(e.target?.id==="birthDob")autoBirthWords();if(e.target?.id==="birthRegNo"){const c=$("birthRegNoCopy");if(c)c.value=e.target.value;}});
+document.addEventListener("change",e=>{if(e.target?.id==="birthDobCopy"){const d=$("birthDob");if(d){d.value=e.target.value;autoBirthWords();}}});
+boot();
 </script>
 </body>
 </html>

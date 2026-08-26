@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 # Embedded/local fonts for PDF rendering

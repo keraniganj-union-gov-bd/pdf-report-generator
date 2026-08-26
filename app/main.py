@@ -1281,7 +1281,7 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;fon
         <div class="bio-label"><span class="label-text">Sex</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("sex",""))}</div>
       </div>
       <div class="bio-row">
-        <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
+        <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:9.6pt;letter-spacing:-.02px">{esc(dob_words)}</div>
         <div></div><div></div>
       </div>
       <div class="bio-row">

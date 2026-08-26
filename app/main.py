@@ -1215,16 +1215,16 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
 @page {{size:A4;margin:0;}}
 * {{box-sizing:border-box;box-shadow:none!important;text-shadow:none!important;}}
 html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
-body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:10.7pt;line-height:1.18;}}
+body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;font-size:10.7pt;line-height:1.18;-webkit-font-smoothing:antialiased;}}
 .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
 .page {{position:relative;width:210mm;height:297mm;padding:0;}}
 .content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:transparent;}}
-.qr-block {{position:absolute;left:-7.62mm;top:0;width:32mm;text-align:center;}}
+.qr-block {{position:absolute;left:-7.62mm;top:7.62mm;width:32mm;text-align:center;}}
 .qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
 .ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
-.head {{position:absolute;left:0;right:0;top:25.4mm;text-align:center;}}
-.office {{font-family:Arial,sans-serif;font-weight:700;font-size:13pt;line-height:1.35;white-space:nowrap;}}
-.office-bn {{font-size:11pt;font-weight:700;margin-top:1mm;}}
+.head {{position:absolute;left:8mm;right:0;top:25.4mm;text-align:center;}}
+.office {{font-family:Arial,sans-serif;font-weight:700;font-size:11pt;line-height:1.35;white-space:nowrap;}}
+.office-bn {{font-size:10pt;font-weight:700;margin-top:1mm;}}
 .rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2mm;}}
 .title {{font-size:13.5pt;font-weight:700;margin-top:2mm;white-space:nowrap;}}
 .notice {{display:none !important;}}

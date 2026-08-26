@@ -1,4 +1,8 @@
 from pathlib import Path
+
+# Embedded/local fonts for PDF rendering
+SUTONNY_MJ_FONT = os.path.join(os.path.dirname(__file__), "fonts", "SutonnyMJ.ttf")
+ENGLISH_FONT_FAMILY = "Arial"
 import base64, html, io, json, os, re, sqlite3, tempfile, uuid
 from datetime import datetime
 
@@ -26,6 +30,9 @@ BASE = Path(__file__).resolve().parent.parent
 DATA = BASE / "data"
 GENERATED = BASE / "generated"
 STATIC = BASE / "static"
+FONT_SUTONNY = BASE / "fonts" / "SutonnyMJ-Regular.ttf"
+# SutonnyMJ is a legacy Bijoy/ANSI font. The app data is Unicode Bangla, so keep
+# the existing Unicode-safe font for rendering while embedding SutonnyMJ in the project.
 FONT = BASE / "fonts" / "NotoSansBengali-Regular.ttf"
 FONT_REGULAR = BASE / "fonts" / "NotoSansBengali-Regular.ttf"
 FONT_SEMIBOLD = BASE / "fonts" / "NotoSansBengali-SemiBold.ttf"
@@ -1210,39 +1217,38 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
     html_doc = f"""<!doctype html>
 <html lang="bn"><head><meta charset="utf-8">
 <style>
+@font-face {{font-family:SutonnyMJ;src:url('file://{FONT_SUTONNY.as_posix()}');font-weight:400;font-style:normal;}}
 @font-face {{font-family:Bangla;src:url('file://{FONT.as_posix()}');font-weight:400;}}
 @font-face {{font-family:Bangla;src:url('file://{FONT_SEMIBOLD.as_posix()}');font-weight:700;}}
 @page {{size:A4;margin:0;}}
 * {{box-sizing:border-box;box-shadow:none!important;text-shadow:none!important;}}
 html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
-body {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;color:#111;background:transparent;font-size:10.7pt;line-height:1.18;-webkit-font-smoothing:antialiased;text-shadow:none!important;box-shadow:none!important;}}
-* {{text-shadow:none!important;box-shadow:none!important;}}
+body {{font-family:Bangla,Arial,sans-serif;color:#111;background:#fff;font-size:10.7pt;line-height:1.18;}}
 .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
 .page {{position:relative;width:210mm;height:297mm;padding:0;}}
-.content {{position:absolute;left:25.4mm;right:18mm;top:0;bottom:14mm;background:transparent;}}
-.qr-block {{position:absolute;left:-7.62mm;top:30.48mm;width:32mm;text-align:center;}}
+.content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:transparent;}}
+.qr-block {{position:absolute;left:-7.62mm;top:0;width:32mm;text-align:center;}}
 .qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
-.ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
-.head {{position:absolute;left:8mm;right:0;top:50.8mm;text-align:center;}}
-.office {{display:none!important;}}
-.office-bn {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;font-size:9.5pt;font-weight:400;margin-top:1.8mm;white-space:nowrap;}}
-.rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2.2mm;}}
-.title {{font-size:12.5pt;font-weight:700;margin-top:2.2mm;white-space:nowrap;}}
+.ref {{font-family:Arial,sans-serif;font-weight:400;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
+.head {{position:absolute;left:0;right:0;top:25.4mm;text-align:center;}}
+.office {{font-family:Arial,sans-serif;font-weight:700;font-size:13pt;line-height:1.35;white-space:nowrap;}}
+.office-bn {{font-size:11pt;font-weight:700;margin-top:1mm;}}
+.rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2mm;}}
+.title {{font-size:13.5pt;font-weight:700;margin-top:2mm;white-space:nowrap;}}
+.en {{font-family:Arial,sans-serif;}}
 .notice {{display:none !important;}}
-.grid-top {{position:absolute;left:0;right:0;top:93mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;}}
+.grid-top {{position:absolute;left:0;right:0;top:65mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
 .top-item {{font-size:8.5pt;}}
 .top-item.center {{text-align:center;}}
 .top-label {{font-weight:700;}}
-.top-value {{margin-top:1.5mm;font-size:10.8pt;}}
-.top-item.center .top-label,.top-item.center .top-value {{font-weight:700;font-size:11.2pt;}}
-.bio {{position:absolute;left:0;right:0;top:111mm;}}
-.bio-row {{display:grid;grid-template-columns:38mm 1fr 31mm 1.15fr;min-height:11mm;align-items:start;}}
-.bio-row + .bio-row.dob-word {{margin-top:-3mm;}}
-.bio-row.single {{grid-template-columns:38mm 1fr 31mm 1.15fr;}}
-.bio-label {{font-weight:400;padding:2.3mm 1.5mm 1.5mm 0;display:grid;grid-template-columns:minmax(0,1fr) 3.5mm;column-gap:1mm;align-items:start;}}.bio-label .label-text {{min-width:0;}}.bio-label .colon {{text-align:center;width:3.5mm;}}
+.top-value {{margin-top:1.5mm;font-size:9.5pt;}}
+.bio {{position:absolute;left:0;right:0;top:83mm;}}
+.bio-row {{display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:11mm;align-items:start;}}
+.bio-row.single {{grid-template-columns:38mm 1fr 43mm 1.15fr;}}
+.bio-label {{font-weight:700;padding:2.3mm 1.5mm 1.5mm 0;display:grid;grid-template-columns:minmax(0,1fr) 3.5mm;column-gap:1mm;align-items:start;}}.bio-label .label-text {{min-width:0;}}.bio-label .colon {{text-align:center;width:3.5mm;}}
 .bio-value {{padding:2.3mm 2mm 1.5mm 0;overflow-wrap:anywhere;}}
 .bio-value.en {{font-family:Arial,sans-serif;}}
-.addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 31mm 1.15fr;min-height:25mm;}}
+.addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:25mm;}}
 .addr .bio-value {{white-space:pre-wrap;line-height:1.35;}}
 .bottom-note {{position:absolute;left:0;right:0;bottom:3mm;text-align:center;font-family:Arial,sans-serif;font-size:6.8pt;color:#555;}}
 .watermark {{position:absolute;left:0;right:0;bottom:2.5mm;text-align:center;font-family:Arial,sans-serif;font-size:5.5pt;font-weight:600;color:rgba(70,70,70,.75);transform:none;pointer-events:none;}}
@@ -1257,10 +1263,12 @@ body {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;color:#111
     </div>
 
     <div class="head">
+      <div class="office">Government of the People’s Republic of Bangladesh</div>
+      <div class="office">Office of the Registrar, Birth and Death Registration</div>
       <div class="office-bn">{esc(d.get("union_en",""))}</div>
       <div class="office-bn">{esc(d.get("upazila_district_en",""))}</div>
       <div class="rule">(Rule 9, 10)</div>
-      <div class="title">জন্ম নিবন্ধন সনদ / Birth Registration Certificate</div>
+      <div class="title">জন্ম নিবন্ধন সনদ / <span class="en">Birth Registration Certificate</span></div>
     </div>
 
     <div class="grid-top">
@@ -1283,7 +1291,7 @@ body {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;color:#111
         <div class="bio-label"><span class="label-text">জন্ম তারিখ</span><span class="colon">:</span></div><div class="bio-value">{esc(dob)}</div>
         <div class="bio-label"><span class="label-text">Sex</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("sex",""))}</div>
       </div>
-      <div class="bio-row dob-word">
+      <div class="bio-row">
         <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
         <div></div><div></div>
       </div>
@@ -1317,6 +1325,7 @@ body {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;color:#111
       </div>
     </div>
 
+    <div class="watermark">UNOFFICIAL REFERENCE</div>
   </div>
 </div>
 </body></html>"""
@@ -1392,6 +1401,12 @@ def make_pdf(d):
 <meta charset="utf-8">
 <style>
 @font-face {{
+  font-family: SutonnyMJ;
+  src: url('file://{FONT_SUTONNY.as_posix()}');
+  font-weight:400;
+  font-style:normal;
+}}
+@font-face {{
   font-family: Bangla;
   src: url('file://{FONT.as_posix()}');
   font-weight:300;
@@ -1408,7 +1423,7 @@ def make_pdf(d):
 }}
 @page {{ size:A4; margin:0; }}
 * {{ box-sizing:border-box; text-shadow:none !important; box-shadow:none !important; -webkit-text-stroke:0 !important; }}
-body {{ font-family:"SolaimanLipi","SutonnyMJ",Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; text-shadow:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
+body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; text-shadow:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
 .header, .notice, .section, table, .address, .footer {{ background:rgba(255,255,255,.96); border:0 !important; box-shadow:none !important; text-shadow:none !important; }}
 .page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm; object-fit:fill; opacity:1; z-index:0; pointer-events:none; }}
 .report-content {{ position:relative; z-index:1; }}

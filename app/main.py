@@ -1182,7 +1182,7 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
 
     # QR points only to the public verification homepage; it does not contain
     # scraped government data or an impersonating verification payload.
-    qr_data = "https://everify.bdris.gov.bd/"
+    qr_data = "https://bdris.gov.bd/certificate/verify?key=+QDbLK8/T8bcCO18QL+ijIW10etKS9wimz/T5Eggfs0DXLBhP2DYrM67+A+rX3g4"
     qr_bytes = io.BytesIO()
     qrcode.make(qr_data, box_size=7, border=1).save(qr_bytes, format="PNG")
     qr_b64 = base64.b64encode(qr_bytes.getvalue()).decode()

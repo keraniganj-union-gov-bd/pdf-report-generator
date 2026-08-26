@@ -1218,28 +1218,30 @@ html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
 body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;font-size:10.7pt;line-height:1.18;-webkit-font-smoothing:antialiased;}}
 .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
 .page {{position:relative;width:210mm;height:297mm;padding:0;}}
-.content {{position:absolute;left:25.4mm;right:18mm;top:10mm;bottom:14mm;background:transparent;}}
-.qr-block {{position:absolute;left:-7.62mm;top:7.62mm;width:32mm;text-align:center;}}
+.content {{position:absolute;left:25.4mm;right:18mm;top:0;bottom:14mm;background:transparent;}}
+.qr-block {{position:absolute;left:-7.62mm;top:30.48mm;width:32mm;text-align:center;}}
 .qr {{width:30.48mm;height:30.48mm;display:block;margin:0 auto;}}
 .ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
-.head {{position:absolute;left:8mm;right:0;top:25.4mm;text-align:center;}}
-.office {{font-family:Arial,sans-serif;font-weight:700;font-size:11pt;line-height:1.35;white-space:nowrap;}}
-.office-bn {{font-size:10pt;font-weight:700;margin-top:1mm;}}
-.rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2mm;}}
-.title {{font-size:13.5pt;font-weight:700;margin-top:2mm;white-space:nowrap;}}
+.head {{position:absolute;left:8mm;right:0;top:50.8mm;text-align:center;}}
+.office {{display:none!important;}}
+.office-bn {{font-family:Arial,Bangla,sans-serif;font-size:9.5pt;font-weight:400;margin-top:1.8mm;white-space:nowrap;}}
+.rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2.2mm;}}
+.title {{font-size:12.5pt;font-weight:700;margin-top:2.2mm;white-space:nowrap;}}
 .notice {{display:none !important;}}
-.grid-top {{position:absolute;left:0;right:0;top:65mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
+.grid-top {{position:absolute;left:0;right:0;top:93mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
 .top-item {{font-size:8.5pt;}}
 .top-item.center {{text-align:center;}}
 .top-label {{font-weight:700;}}
-.top-value {{margin-top:1.5mm;font-size:9.5pt;}}
-.bio {{position:absolute;left:0;right:0;top:83mm;}}
-.bio-row {{display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:11mm;align-items:start;}}
-.bio-row.single {{grid-template-columns:38mm 1fr 43mm 1.15fr;}}
-.bio-label {{font-weight:700;padding:2.3mm 1.5mm 1.5mm 0;display:grid;grid-template-columns:minmax(0,1fr) 3.5mm;column-gap:1mm;align-items:start;}}.bio-label .label-text {{min-width:0;}}.bio-label .colon {{text-align:center;width:3.5mm;}}
+.top-value {{margin-top:1.5mm;font-size:10.8pt;}}
+.top-item.center .top-label,.top-item.center .top-value {{font-weight:700;font-size:11.2pt;}}
+.bio {{position:absolute;left:0;right:0;top:111mm;}}
+.bio-row {{display:grid;grid-template-columns:38mm 1fr 31mm 1.15fr;min-height:11mm;align-items:start;}}
+.bio-row + .bio-row.dob-word {{margin-top:-3mm;}}
+.bio-row.single {{grid-template-columns:38mm 1fr 31mm 1.15fr;}}
+.bio-label {{font-weight:400;padding:2.3mm 1.5mm 1.5mm 0;display:grid;grid-template-columns:minmax(0,1fr) 3.5mm;column-gap:1mm;align-items:start;}}.bio-label .label-text {{min-width:0;}}.bio-label .colon {{text-align:center;width:3.5mm;}}
 .bio-value {{padding:2.3mm 2mm 1.5mm 0;overflow-wrap:anywhere;}}
 .bio-value.en {{font-family:Arial,sans-serif;}}
-.addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 43mm 1.15fr;min-height:25mm;}}
+.addr {{margin-top:2mm;display:grid;grid-template-columns:38mm 1fr 31mm 1.15fr;min-height:25mm;}}
 .addr .bio-value {{white-space:pre-wrap;line-height:1.35;}}
 .bottom-note {{position:absolute;left:0;right:0;bottom:3mm;text-align:center;font-family:Arial,sans-serif;font-size:6.8pt;color:#555;}}
 .watermark {{position:absolute;left:0;right:0;bottom:2.5mm;text-align:center;font-family:Arial,sans-serif;font-size:5.5pt;font-weight:600;color:rgba(70,70,70,.75);transform:none;pointer-events:none;}}
@@ -1280,8 +1282,8 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;fon
         <div class="bio-label"><span class="label-text">জন্ম তারিখ</span><span class="colon">:</span></div><div class="bio-value">{esc(dob)}</div>
         <div class="bio-label"><span class="label-text">Sex</span><span class="colon">:</span></div><div class="bio-value en">{esc(d.get("sex",""))}</div>
       </div>
-      <div class="bio-row">
-        <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:9.6pt;letter-spacing:-.02px">{esc(dob_words)}</div>
+      <div class="bio-row dob-word">
+        <div class="bio-label"><span class="label-text">In Word</span><span class="colon">:</span></div><div class="bio-value en" style="font-style:italic;white-space:nowrap;font-size:8.6pt;letter-spacing:-.05px">{esc(dob_words)}</div>
         <div></div><div></div>
       </div>
       <div class="bio-row">

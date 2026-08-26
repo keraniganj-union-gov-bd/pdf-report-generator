@@ -1215,7 +1215,8 @@ def make_birth_reference_pdf(d, background_b64="", background_mime="image/jpeg")
 @page {{size:A4;margin:0;}}
 * {{box-sizing:border-box;box-shadow:none!important;text-shadow:none!important;}}
 html,body {{margin:0;padding:0;width:210mm;height:297mm;}}
-body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;font-size:10.7pt;line-height:1.18;-webkit-font-smoothing:antialiased;}}
+body {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;color:#111;background:transparent;font-size:10.7pt;line-height:1.18;-webkit-font-smoothing:antialiased;text-shadow:none!important;box-shadow:none!important;}}
+* {{text-shadow:none!important;box-shadow:none!important;}}
 .page-bg {{position:fixed;left:0;top:0;width:210mm;height:297mm;object-fit:cover;z-index:-2;}}
 .page {{position:relative;width:210mm;height:297mm;padding:0;}}
 .content {{position:absolute;left:25.4mm;right:18mm;top:0;bottom:14mm;background:transparent;}}
@@ -1224,11 +1225,11 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;fon
 .ref {{font-family:Arial,sans-serif;font-weight:700;font-size:9pt;letter-spacing:1.8px;margin-top:1.5mm;}}
 .head {{position:absolute;left:8mm;right:0;top:50.8mm;text-align:center;}}
 .office {{display:none!important;}}
-.office-bn {{font-family:Arial,Bangla,sans-serif;font-size:9.5pt;font-weight:400;margin-top:1.8mm;white-space:nowrap;}}
+.office-bn {{font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;font-size:9.5pt;font-weight:400;margin-top:1.8mm;white-space:nowrap;}}
 .rule {{font-family:Arial,sans-serif;font-size:9pt;margin-top:2.2mm;}}
 .title {{font-size:12.5pt;font-weight:700;margin-top:2.2mm;white-space:nowrap;}}
 .notice {{display:none !important;}}
-.grid-top {{position:absolute;left:0;right:0;top:93mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:Arial,Bangla,sans-serif;}}
+.grid-top {{position:absolute;left:0;right:0;top:93mm;display:grid;grid-template-columns:1fr 1.25fr 1fr;column-gap:7mm;font-family:"SolaimanLipi","SutonnyMJ",Bangla,Arial,sans-serif;}}
 .top-item {{font-size:8.5pt;}}
 .top-item.center {{text-align:center;}}
 .top-label {{font-weight:700;}}
@@ -1407,7 +1408,7 @@ def make_pdf(d):
 }}
 @page {{ size:A4; margin:0; }}
 * {{ box-sizing:border-box; text-shadow:none !important; box-shadow:none !important; -webkit-text-stroke:0 !important; }}
-body {{ font-family:Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; text-shadow:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
+body {{ font-family:"SolaimanLipi","SutonnyMJ",Bangla,sans-serif; color:#111; font-size:13px; font-weight:400; line-height:1.24; -webkit-font-smoothing:antialiased; text-shadow:none !important; margin:0; padding:2.5in 0.8in 1.2in 2.5in; }}
 .header, .notice, .section, table, .address, .footer {{ background:rgba(255,255,255,.96); border:0 !important; box-shadow:none !important; text-shadow:none !important; }}
 .page-bg {{ position:fixed; left:0; top:0; width:210mm; height:297mm; object-fit:fill; opacity:1; z-index:0; pointer-events:none; }}
 .report-content {{ position:relative; z-index:1; }}

@@ -1,0 +1,8 @@
+@font-face {
+  font-family: "SutonnyMJ";
+  src: url("fonts/SutonnyMJ.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+.bn, [lang="bn"], .bangla { font-family: "SutonnyMJ", sans-serif !important; }
+.en, [lang="en"], .english { font-family: Arial, sans-serif !important; }

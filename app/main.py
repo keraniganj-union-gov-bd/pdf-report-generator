@@ -1254,8 +1254,6 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;fon
     </div>
 
     <div class="head">
-      <div class="office">Government of the People’s Republic of Bangladesh</div>
-      <div class="office">Office of the Registrar, Birth and Death Registration</div>
       <div class="office-bn">{esc(d.get("union_en",""))}</div>
       <div class="office-bn">{esc(d.get("upazila_district_en",""))}</div>
       <div class="rule">(Rule 9, 10)</div>

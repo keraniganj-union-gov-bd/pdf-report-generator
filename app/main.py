@@ -1260,7 +1260,6 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;fon
       <div class="office-bn">{esc(d.get("upazila_district_en",""))}</div>
       <div class="rule">(Rule 9, 10)</div>
       <div class="title">জন্ম নিবন্ধন সনদ / Birth Registration Certificate</div>
-      <div class="notice">UNOFFICIAL REFERENCE COPY — NOT A GOVERNMENT-ISSUED CERTIFICATE</div>
     </div>
 
     <div class="grid-top">
@@ -1317,7 +1316,6 @@ body {{font-family:Bangla,Arial,sans-serif;color:#111;background:transparent;fon
       </div>
     </div>
 
-    <div class="watermark">UNOFFICIAL REFERENCE</div>
   </div>
 </div>
 </body></html>"""

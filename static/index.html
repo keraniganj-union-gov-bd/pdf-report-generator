@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>PDF Report Generator</title>
 <style>
+@font-face{font-family:"SutonnyMJ";src:url("/static/fonts/SutonnyMJ-Regular.ttf") format("truetype");font-weight:400;font-style:normal;}
+
 :root{--blue:#1677e8;--sky:#eaf6ff;--ink:#17344f;--muted:#6e8194;--line:#dce8f2;--red:#c94b4b;--green:#198754;--white:#fff}
 *{box-sizing:border-box}
-html,body{margin:0;min-height:100%;font-family:"SolaimanLipi","SutonnyMJ","Noto Sans Bengali",Arial,sans-serif;background:#f5faff;color:var(--ink)}
+html,body{margin:0;min-height:100%;font-family:"Segoe UI","Noto Sans Bengali",Arial,sans-serif;background:#f5faff;color:var(--ink)}
 body{overflow-x:hidden}button,input,select,textarea{font:inherit}button{cursor:pointer}.hidden{display:none!important}
 .login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#eaf6ff,#fff)}
 .login-card{width:min(450px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:28px;box-shadow:0 12px 40px rgba(30,90,140,.10)}
@@ -44,6 +46,19 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
 .birth-action-row{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px}
 @media(max-width:800px){.birth-three-grid,.birth-pair-grid,.birth-address-grid,.birth-top-grid{grid-template-columns:1fr}.birth-reference-form{overflow:hidden}}
 </style>
+
+<style id="embedded-pdf-fonts">
+@font-face {
+  font-family: "SutonnyMJ";
+  src: url("fonts/SutonnyMJ.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+:root { --bn-font: "SutonnyMJ", sans-serif; --en-font: Arial, sans-serif; }
+.bn, [lang="bn"], .bangla { font-family: var(--bn-font) !important; }
+.en, [lang="en"], .english { font-family: var(--en-font) !important; }
+</style>
+
 </head>
 <body>
 

@@ -295,11 +295,17 @@ def prod_init():
                 "VALUES(:id,:e,:p,'admin',1,:t)"
             ), {"id": 1, "e": ADMIN_EMAIL, "p": _hash_password(ADMIN_PASSWORD), "t": datetime.utcnow().isoformat()})
             c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(1,0)"))
-        for key, value in [("web_price","1"),("voter_search_price","1"),("api_price","1"),("bkash_number","01925211591")]:
+        for key, value in [("web_price","1"),("voter_search_price","1"),("api_price","1"),("sign_to_server_price","1"),("auto_birth_price","1"),("bkash_number","01925211591")]:
             c.execute(text(
                 "INSERT INTO web_settings(key,value) VALUES(:k,:v) "
                 "ON CONFLICT(key) DO NOTHING"
             ), {"k": key, "v": value})
+        # Keep the new Sign to Server price backward-compatible with the
+        # previous web_price setting on existing installations.
+        existing_sign = c.execute(text("SELECT value FROM web_settings WHERE key=:k"), {"k":"sign_to_server_price"}).fetchone()
+        if existing_sign is None:
+            old_web = c.execute(text("SELECT value FROM web_settings WHERE key=:k"), {"k":"web_price"}).fetchone()
+            c.execute(text("INSERT INTO web_settings(key,value) VALUES(:k,:v) ON CONFLICT(key) DO NOTHING"), {"k":"sign_to_server_price", "v": str(old_web[0]) if old_web else "1"})
 
 prod_init()
 
@@ -1648,26 +1654,99 @@ def web_me(web_session: str | None = Cookie(default=None)):
 @app.get("/api/admin/price")
 def admin_web_price_get(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
+    sign_price = int(prod_setting("sign_to_server_price", prod_setting("web_price", "1")))
+    birth_price = int(prod_setting("auto_birth_price", "1"))
+    api_price = int(prod_setting("api_price", "1"))
+    voter_price = int(prod_setting("voter_search_price", "1"))
     return {
         "success": True,
-        "web_price": int(prod_setting("web_price", "1")),
-        "voter_search_price": int(prod_setting("voter_search_price", "1"))
+        "web_price": sign_price,
+        "sign_to_server_price": sign_price,
+        "auto_birth_price": birth_price,
+        "api_price": api_price,
+        "voter_search_price": voter_price
     }
 
-@app.get("/api/announcement")
-def public_announcement():
-    return {
-        "success": True,
-        "message": prod_setting("announcement", "")
+# ---------------------------------------------------------------------------
+# Admin/public/section messages. Public message is available without login;
+# section messages are returned after login and shown only on their section.
+# ---------------------------------------------------------------------------
+SECTION_MESSAGE_KEYS = (
+    "message_sign_to_server", "message_voter_search", "message_auto_birth",
+    "message_buy_credits", "message_payment_history", "message_history",
+    "message_profile", "message_customer_data"
+)
+
+@app.get("/api/public-message")
+def public_message():
+    return {"success": True, "message": prod_setting("public_message", "")}
+
+@app.get("/api/customer/messages")
+def customer_messages(web_session: str | None = Cookie(default=None)):
+    require_customer(web_session)
+    return {"success": True, "messages": {
+        "public": prod_setting("public_message", ""),
+        "sign_to_server": prod_setting("message_sign_to_server", ""),
+        "voter_search": prod_setting("message_voter_search", ""),
+        "auto_birth": prod_setting("message_auto_birth", ""),
+        "buy_credits": prod_setting("message_buy_credits", ""),
+        "payment_history": prod_setting("message_payment_history", ""),
+        "history": prod_setting("message_history", ""),
+        "profile": prod_setting("message_profile", ""),
+        "customer_data": prod_setting("message_customer_data", "")
+    }}
+
+@app.get("/api/admin/messages")
+def admin_messages_get(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    return {"success": True, "messages": {
+        "public": prod_setting("public_message", ""),
+        "sign_to_server": prod_setting("message_sign_to_server", ""),
+        "voter_search": prod_setting("message_voter_search", ""),
+        "auto_birth": prod_setting("message_auto_birth", ""),
+        "buy_credits": prod_setting("message_buy_credits", ""),
+        "payment_history": prod_setting("message_payment_history", ""),
+        "history": prod_setting("message_history", ""),
+        "profile": prod_setting("message_profile", ""),
+        "customer_data": prod_setting("message_customer_data", "")
+    }}
+
+@app.post("/api/admin/messages")
+def admin_messages_save(
+    public: str = Form(""),
+    sign_to_server: str = Form(""),
+    voter_search: str = Form(""),
+    auto_birth: str = Form(""),
+    buy_credits: str = Form(""),
+    payment_history: str = Form(""),
+    history: str = Form(""),
+    profile: str = Form(""),
+    customer_data: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+    values = {
+        "public_message": public,
+        "message_sign_to_server": sign_to_server,
+        "message_voter_search": voter_search,
+        "message_auto_birth": auto_birth,
+        "message_buy_credits": buy_credits,
+        "message_payment_history": payment_history,
+        "message_history": history,
+        "message_profile": profile,
+        "message_customer_data": customer_data,
     }
+    for key, value in values.items():
+        value = str(value or "").strip()
+        if len(value) > 1000:
+            raise HTTPException(400, f"{key} message must be 1000 characters or fewer")
+        prod_set_setting(key, value)
+    return {"success": True, "message": "All messages saved successfully."}
 
 @app.get("/api/admin/announcement")
 def admin_announcement_get(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
-    return {
-        "success": True,
-        "message": prod_setting("announcement", "")
-    }
+    return {"success": True, "message": prod_setting("public_message", "")}
 
 @app.post("/api/admin/announcement")
 def admin_announcement_save(
@@ -1676,26 +1755,40 @@ def admin_announcement_save(
 ):
     require_admin(web_session)
     message = message.strip()
-    if len(message) > 500:
-        raise HTTPException(400, "Message must be 500 characters or fewer")
-    prod_set_setting("announcement", message)
-    return {
-        "success": True,
-        "message": message
-    }
+    if len(message) > 1000:
+        raise HTTPException(400, "Message must be 1000 characters or fewer")
+    prod_set_setting("public_message", message)
+    return {"success": True, "message": message}
 
 @app.post("/api/admin/price")
 def admin_web_price(
-    web_price:int=Form(...),
-    voter_search_price:int=Form(1),
-    web_session: str | None=Cookie(default=None)
+    web_price: int = Form(...),
+    voter_search_price: int = Form(1),
+    sign_to_server_price: int | None = Form(None),
+    auto_birth_price: int | None = Form(None),
+    api_price: int | None = Form(None),
+    web_session: str | None = Cookie(default=None)
 ):
     require_admin(web_session)
-    if web_price < 0 or voter_search_price < 0:
-        raise HTTPException(400,"Price cannot be negative")
-    prod_set_setting("web_price",str(web_price))
-    prod_set_setting("voter_search_price",str(voter_search_price))
-    return {"success":True,"web_price":web_price,"voter_search_price":voter_search_price}
+    sign_price = web_price if sign_to_server_price is None else sign_to_server_price
+    birth_price = int(prod_setting("auto_birth_price", "1")) if auto_birth_price is None else auto_birth_price
+    global_api_price = int(prod_setting("api_price", "1")) if api_price is None else api_price
+    if min(web_price, voter_search_price, sign_price, birth_price, global_api_price) < 0:
+        raise HTTPException(400, "Price cannot be negative")
+    prod_set_setting("web_price", str(sign_price))
+    prod_set_setting("sign_to_server_price", str(sign_price))
+    prod_set_setting("voter_search_price", str(voter_search_price))
+    prod_set_setting("auto_birth_price", str(birth_price))
+    prod_set_setting("api_price", str(global_api_price))
+    return {
+        "success": True,
+        "web_price": sign_price,
+        "sign_to_server_price": sign_price,
+        "voter_search_price": voter_search_price,
+        "auto_birth_price": birth_price,
+        "api_price": global_api_price
+    }
+
 @app.get("/api/admin/bkash")
 def admin_bkash_status(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
@@ -2008,7 +2101,10 @@ def customer_status(web_session: str | None = Cookie(default=None)):
     return {
         "success": True,
         "balance": prod_balance(u["id"]),
-        "price": int(prod_setting("web_price", "1")),
+        "price": int(prod_setting("sign_to_server_price", prod_setting("web_price", "1"))),
+        "sign_to_server_price": int(prod_setting("sign_to_server_price", prod_setting("web_price", "1"))),
+        "auto_birth_price": int(prod_setting("auto_birth_price", "1")),
+        "api_price": int(prod_setting("api_price", "1")),
         "voter_search_price": int(prod_setting("voter_search_price", "1")),
         "bkash_number": prod_setting("bkash_number", "01925211591") or "01925211591"
     }
@@ -2736,7 +2832,7 @@ async def customer_birth_reference(
         raise HTTPException(400,"Birth Registration Number must contain exactly 17 digits")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", dob.strip()):
         raise HTTPException(400,"Date of Birth must be YYYY-MM-DD")
-    price=0 if u.get("role")=="admin" else int(prod_setting("web_price","1"))
+    price=0 if u.get("role")=="admin" else int(prod_setting("auto_birth_price", "1"))
     new_balance=prod_balance(u["id"]) if u.get("role")=="admin" else prod_charge(u["id"],price)
     # Customers never upload a background. The admin-selected Auto Birth
     # background is used until the admin changes it. If an older deployment
@@ -2804,7 +2900,7 @@ async def customer_generate(
     # decode/write from every PDF generation request.
     # Admin can generate PDFs directly without any balance/credit charge.
     # Customers continue to use the normal configured PDF price.
-    price = 0 if u.get("role") == "admin" else int(prod_setting("web_price", "1"))
+    price = 0 if u.get("role") == "admin" else int(prod_setting("sign_to_server_price", prod_setting("web_price", "1")))
     nid = str(d.get("national_id", "")).strip()
     if not nid:
         raise HTTPException(400, "NID number is required")

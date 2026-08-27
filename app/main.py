@@ -11,6 +11,9 @@ from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 from fastapi import Cookie, Depends
 # WeasyPrint is optional. Render/production environments may not have it.
@@ -94,6 +97,20 @@ prod_engine = create_engine(
 SESSION_SECRET = os.getenv("SESSION_SECRET", "CHANGE_THIS_SESSION_SECRET")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "ChangeThisAdminPassword123!")
+
+# ---------------------------------------------------------------------------
+# DB Clouds voter-search integration. Keep the API key server-side only.
+# Set these in Render/production Environment Variables:
+#   DBCLOUDS_API_URL       = the real search API endpoint (NOT test-api.html)
+#   DBCLOUDS_API_KEY       = the API key supplied by DB Clouds
+#   DBCLOUDS_API_METHOD    = POST (default) or GET
+#   DBCLOUDS_API_KEY_HEADER= X-API-Key (default) or Authorization
+# ---------------------------------------------------------------------------
+DBCLOUDS_API_URL = os.getenv("DBCLOUDS_API_URL", "").strip()
+DBCLOUDS_API_KEY = os.getenv("DBCLOUDS_API_KEY", "").strip()
+DBCLOUDS_API_METHOD = os.getenv("DBCLOUDS_API_METHOD", "POST").strip().upper() or "POST"
+DBCLOUDS_API_KEY_HEADER = os.getenv("DBCLOUDS_API_KEY_HEADER", "X-API-Key").strip() or "X-API-Key"
+DBCLOUDS_API_TIMEOUT = int(os.getenv("DBCLOUDS_API_TIMEOUT", "25") or 25)
 
 def _hash_password(password: str, salt: str | None = None) -> str:
     salt = salt or secrets.token_hex(16)
@@ -256,6 +273,17 @@ def prod_init():
                 created_at VARCHAR(40) NOT NULL
             )
         """))
+        c.execute(text("""
+            CREATE TABLE IF NOT EXISTS voter_searches (
+                id INTEGER PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                query_json TEXT NOT NULL,
+                result_json TEXT NOT NULL,
+                unlocked INTEGER NOT NULL DEFAULT 0,
+                charged INTEGER NOT NULL DEFAULT 0,
+                created_at VARCHAR(40) NOT NULL
+            )
+        """))
         c.execute(text("INSERT INTO api_plans(id,name,price,monthly_limit,rate_limit,max_file_mb,active,created_at) VALUES(1,'Basic','0',1000,30,15,1,:t) ON CONFLICT(id) DO NOTHING"), {"t": datetime.utcnow().isoformat()})
 
         # Seed IDs manually so SQLite and Cockroach both work without
@@ -267,7 +295,7 @@ def prod_init():
                 "VALUES(:id,:e,:p,'admin',1,:t)"
             ), {"id": 1, "e": ADMIN_EMAIL, "p": _hash_password(ADMIN_PASSWORD), "t": datetime.utcnow().isoformat()})
             c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(1,0)"))
-        for key, value in [("web_price","1"),("api_price","1"),("bkash_number","01925211591")]:
+        for key, value in [("web_price","1"),("voter_search_price","1"),("api_price","1"),("bkash_number","01925211591")]:
             c.execute(text(
                 "INSERT INTO web_settings(key,value) VALUES(:k,:v) "
                 "ON CONFLICT(key) DO NOTHING"
@@ -1622,7 +1650,8 @@ def admin_web_price_get(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
     return {
         "success": True,
-        "web_price": int(prod_setting("web_price", "1"))
+        "web_price": int(prod_setting("web_price", "1")),
+        "voter_search_price": int(prod_setting("voter_search_price", "1"))
     }
 
 @app.get("/api/announcement")
@@ -1656,11 +1685,17 @@ def admin_announcement_save(
     }
 
 @app.post("/api/admin/price")
-def admin_web_price(web_price:int=Form(...), web_session: str | None=Cookie(default=None)):
+def admin_web_price(
+    web_price:int=Form(...),
+    voter_search_price:int=Form(1),
+    web_session: str | None=Cookie(default=None)
+):
     require_admin(web_session)
-    if web_price < 0: raise HTTPException(400,"Price cannot be negative")
+    if web_price < 0 or voter_search_price < 0:
+        raise HTTPException(400,"Price cannot be negative")
     prod_set_setting("web_price",str(web_price))
-    return {"success":True,"web_price":web_price}
+    prod_set_setting("voter_search_price",str(voter_search_price))
+    return {"success":True,"web_price":web_price,"voter_search_price":voter_search_price}
 @app.get("/api/admin/bkash")
 def admin_bkash_status(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
@@ -1974,6 +2009,7 @@ def customer_status(web_session: str | None = Cookie(default=None)):
         "success": True,
         "balance": prod_balance(u["id"]),
         "price": int(prod_setting("web_price", "1")),
+        "voter_search_price": int(prod_setting("voter_search_price", "1")),
         "bkash_number": prod_setting("bkash_number", "01925211591") or "01925211591"
     }
     # ============================================================
@@ -2483,6 +2519,189 @@ async def api_generate_pdf(file: UploadFile=File(...), x_api_key: str | None = H
         try: os.remove(temp)
         except Exception: pass
     return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"X-Request-ID":request_id,"X-API-Client":client["name"]},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
+
+# ============================================================
+# DB Clouds — Voter Search All BD
+# ============================================================
+def _dbclouds_configured() -> bool:
+    return bool(DBCLOUDS_API_URL and DBCLOUDS_API_KEY)
+
+
+def _dbclouds_request(payload: dict):
+    if not _dbclouds_configured():
+        raise HTTPException(503, "DB Clouds API is not configured. Set DBCLOUDS_API_URL and DBCLOUDS_API_KEY on the server.")
+    method = DBCLOUDS_API_METHOD if DBCLOUDS_API_METHOD in ("GET", "POST") else "POST"
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "V1-PDF-Generator/1.0",
+        DBCLOUDS_API_KEY_HEADER: DBCLOUDS_API_KEY,
+    }
+    try:
+        if method == "GET":
+            url = DBCLOUDS_API_URL + ("&" if "?" in DBCLOUDS_API_URL else "?") + urlencode(payload)
+            req = Request(url, headers=headers, method="GET")
+        else:
+            raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+            req = Request(DBCLOUDS_API_URL, data=raw, headers=headers, method="POST")
+        with urlopen(req, timeout=DBCLOUDS_API_TIMEOUT) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            status = getattr(resp, "status", 200)
+    except HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[-1200:]
+        raise HTTPException(502, f"DB Clouds API error ({e.code}): {detail or e.reason}")
+    except (URLError, TimeoutError) as e:
+        raise HTTPException(502, f"DB Clouds API connection failed: {e}")
+    except Exception as e:
+        raise HTTPException(502, f"DB Clouds API request failed: {e}")
+    if status < 200 or status >= 300:
+        raise HTTPException(502, f"DB Clouds API returned HTTP {status}")
+    try:
+        return json.loads(body)
+    except Exception:
+        raise HTTPException(502, "DB Clouds API did not return valid JSON")
+
+
+def _dbclouds_results(raw):
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, dict):
+        for key in ("data", "results", "voters", "records", "result"):
+            value = raw.get(key)
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                return [value]
+        # Some APIs return one record directly.
+        if any(k in raw for k in ("name", "voter_no", "voter_number", "father_name", "mother_name")):
+            return [raw]
+    return []
+
+
+def _normalize_voter_result(item: dict) -> dict:
+    def pick(*keys):
+        for key in keys:
+            v = item.get(key)
+            if v is not None and str(v).strip() != "":
+                return str(v).strip()
+        return ""
+    return {
+        "name": pick("name", "full_name"),
+        "voter_no": pick("voter_no", "voter_number", "voterNo"),
+        "father_name": pick("father_name", "father", "fatherName"),
+        "mother_name": pick("mother_name", "mother", "motherName"),
+        "birth_date": pick("birth_date", "dob", "date_of_birth", "birthDate"),
+        "profession": pick("profession", "occupation"),
+        "district": pick("district", "zilla"),
+        "upazila": pick("subdistrict", "upazila", "sub_district", "subDistrict"),
+        "village": pick("village", "gram", "village_name"),
+        "post_office": pick("post_office", "postOffice", "post_office_name"),
+        "postcode": pick("postcode", "postal_code", "postalCode"),
+        "gender": pick("gender", "sex"),
+        "address": pick("address", "full_address"),
+    }
+
+
+def _mask_voter_number(value: str) -> str:
+    value = str(value or "")
+    if len(value) <= 4:
+        return "••••" if value else ""
+    return "•" * (len(value) - 4) + value[-4:]
+
+
+def _save_voter_search(user_id: int, query: dict, result: dict) -> int:
+    with prod_engine.begin() as c:
+        sid = _next_id(c, "voter_searches")
+        c.execute(text("""
+            INSERT INTO voter_searches(id,user_id,query_json,result_json,unlocked,charged,created_at)
+            VALUES(:id,:u,:q,:r,0,0,:t)
+        """), {
+            "id": sid, "u": user_id,
+            "q": json.dumps(query, ensure_ascii=False),
+            "r": json.dumps(result, ensure_ascii=False),
+            "t": datetime.utcnow().isoformat(),
+        })
+    return sid
+
+
+@app.get("/api/customer/voter-search/config")
+def voter_search_config(web_session: str | None = Cookie(default=None)):
+    require_customer(web_session)
+    return {
+        "success": True,
+        "configured": _dbclouds_configured(),
+        "price": int(prod_setting("voter_search_price", "1")),
+    }
+
+
+@app.post("/api/customer/voter-search")
+async def voter_search_all_bd(
+    district: str = Form(""),
+    upazila: str = Form(""),
+    dob: str = Form(""),
+    name: str = Form(""),
+    father_name: str = Form(""),
+    mother_name: str = Form(""),
+    web_session: str | None = Cookie(default=None),
+):
+    u = require_customer(web_session)
+    district = district.strip(); upazila = upazila.strip(); dob = dob.strip()
+    name = name.strip(); father_name = father_name.strip(); mother_name = mother_name.strip()
+    if not district or not upazila:
+        raise HTTPException(400, "জেলা এবং উপজেলা দিতে হবে")
+    if not any((dob, name, father_name, mother_name)):
+        raise HTTPException(400, "জন্ম তারিখ, নাম, পিতার নাম বা মাতার নামের অন্তত একটি দিন")
+    payload = {
+        "district": district,
+        "upazila": upazila,
+        "dob": dob,
+        "name": name,
+        "father_name": father_name,
+        "mother_name": mother_name,
+    }
+    raw = _dbclouds_request(payload)
+    items = _dbclouds_results(raw)
+    normalized = [_normalize_voter_result(x) for x in items if isinstance(x, dict)]
+    normalized = [x for x in normalized if any(x.values())]
+    previews = []
+    for result in normalized:
+        sid = _save_voter_search(u["id"], payload, result)
+        previews.append({
+            "result_id": sid,
+            "name": result.get("name", ""),
+            "voter_no": _mask_voter_number(result.get("voter_no", "")),
+            "district": result.get("district", "") or district,
+            "upazila": result.get("upazila", "") or upazila,
+            "unlocked": False,
+        })
+    return {"success": True, "count": len(previews), "results": previews}
+
+
+@app.post("/api/customer/voter-search/{search_id}/unlock")
+def voter_search_unlock(
+    search_id: int,
+    web_session: str | None = Cookie(default=None),
+):
+    u = require_customer(web_session)
+    with prod_engine.begin() as c:
+        row = c.execute(text("SELECT * FROM voter_searches WHERE id=:id AND user_id=:u"), {"id": search_id, "u": u["id"]}).mappings().first()
+    if not row:
+        raise HTTPException(404, "Search result not found or expired")
+    result = json.loads(str(row["result_json"] or "{}"))
+    if int(row["unlocked"] or 0):
+        return {"success": True, "result_id": search_id, "result": result, "balance": prod_balance(u["id"])}
+    price = 0 if u.get("role") == "admin" else int(prod_setting("voter_search_price", "1"))
+    new_balance = prod_balance(u["id"]) if price == 0 else prod_charge(u["id"], price)
+    try:
+        with prod_engine.begin() as c:
+            c.execute(text("UPDATE voter_searches SET unlocked=1,charged=:ch WHERE id=:id AND user_id=:u"), {"ch": price, "id": search_id, "u": u["id"]})
+    except Exception:
+        if price:
+            with prod_engine.begin() as c:
+                c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"), {"a": price, "u": u["id"]})
+        raise
+    return {"success": True, "result_id": search_id, "result": result, "balance": new_balance, "charged": price}
+
 
 @app.post("/api/customer/birth-reference")
 async def customer_birth_reference(

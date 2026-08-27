@@ -425,7 +425,8 @@ async function loadVoterSearchConfig(){
     const x=await r.json();
     if($('voterSearchPriceNote')) $('voterSearchPriceNote').textContent=`Full Details unlock price: ৳${x.price??1}`;
     if(!r.ok || !x.configured){
-      if($('voterSearchStatus')) $('voterSearchStatus').textContent="DB Clouds API এখনও server-এ configure করা হয়নি।";
+      // Do not expose backend/API configuration details to customers.
+      if($('voterSearchStatus')) $('voterSearchStatus').textContent="";
     }
   }catch(_){ }
 }
@@ -488,7 +489,7 @@ async function searchVotersAllBD(){
     (x.results||[]).forEach(p=>voterSearchResults[p.result_id]=p);
     renderVoterResults(x.results||[]);
     $('voterSearchStatus').textContent=`${x.count||0} টি ফলাফল পাওয়া গেছে। Full Details দেখতে প্রতিটি result unlock করুন।`;
-  }catch(e){$('voterSearchStatus').textContent=e.message||'Search failed';}
+  }catch(e){$('voterSearchStatus').textContent='সার্চ করা সম্ভব হয়নি। পরে আবার চেষ্টা করুন।';}
   finally{btn.disabled=false;btn.classList.remove('loading-btn');btn.innerHTML='🔎 Search';}
 }
 async function unlockVoterResult(id){

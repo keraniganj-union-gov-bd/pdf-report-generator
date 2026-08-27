@@ -295,7 +295,7 @@ def prod_init():
                 "VALUES(:id,:e,:p,'admin',1,:t)"
             ), {"id": 1, "e": ADMIN_EMAIL, "p": _hash_password(ADMIN_PASSWORD), "t": datetime.utcnow().isoformat()})
             c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(1,0)"))
-        for key, value in [("web_price","1"),("voter_search_price","1"),("api_price","1"),("sign_to_server_price","1"),("auto_birth_price","1"),("bkash_number","01925211591")]:
+        for key, value in [("web_price","1"),("voter_search_price","1"),("api_price","1"),("sign_to_server_price","1"),("auto_birth_price","1"),("bkash_number","01925211591"),("whatsapp_group_link","")]:
             c.execute(text(
                 "INSERT INTO web_settings(key,value) VALUES(:k,:v) "
                 "ON CONFLICT(key) DO NOTHING"
@@ -1742,6 +1742,30 @@ def admin_messages_save(
             raise HTTPException(400, f"{key} message must be 1000 characters or fewer")
         prod_set_setting(key, value)
     return {"success": True, "message": "All messages saved successfully."}
+
+@app.get("/api/support")
+def support_info():
+    """Public support information. The WhatsApp group link is safe to expose publicly."""
+    return {"success": True, "whatsapp_group_link": prod_setting("whatsapp_group_link", "")}
+
+@app.get("/api/admin/support")
+def admin_support_get(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    return {"success": True, "whatsapp_group_link": prod_setting("whatsapp_group_link", "")}
+
+@app.post("/api/admin/support")
+def admin_support_save(
+    whatsapp_group_link: str = Form(""),
+    web_session: str | None = Cookie(default=None)
+):
+    require_admin(web_session)
+    link = str(whatsapp_group_link or "").strip()
+    if len(link) > 500:
+        raise HTTPException(400, "WhatsApp group link must be 500 characters or fewer")
+    if link and not re.match(r"^https://[^\s]+$", link, re.I):
+        raise HTTPException(400, "WhatsApp group link must be a valid HTTPS URL")
+    prod_set_setting("whatsapp_group_link", link)
+    return {"success": True, "whatsapp_group_link": link, "message": "WhatsApp group link saved successfully."}
 
 @app.get("/api/admin/announcement")
 def admin_announcement_get(web_session: str | None = Cookie(default=None)):

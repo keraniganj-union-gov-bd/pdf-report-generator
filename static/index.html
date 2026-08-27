@@ -43,6 +43,20 @@ h1{font-size:22px;margin:0 0 6px}.muted{color:var(--muted);font-size:13px}
 .birth-section-title{font-size:15px;font-weight:800;margin:18px 0 10px;padding-bottom:8px;border-bottom:1px solid #e2ebf3;color:#17344f}
 .birth-action-row{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px}
 @media(max-width:800px){.birth-three-grid,.birth-pair-grid,.birth-address-grid,.birth-top-grid{grid-template-columns:1fr}.birth-reference-form{overflow:hidden}}
+/* Voter Search All BD */
+.voter-search-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.voter-results{display:grid;gap:12px;margin-top:14px}
+.voter-card{border:1px solid #dce8f2;border-radius:14px;padding:16px;background:#fbfdff}
+.voter-card h3{margin:0 0 8px;font-size:16px;color:#17344f}
+.voter-preview{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:13px}
+.voter-preview div,.voter-detail-grid div{padding:8px 10px;border:1px solid #e7eef4;border-radius:9px;background:#fff}
+.voter-preview b,.voter-detail-grid b{display:block;color:#6e8194;font-size:11px;margin-bottom:2px}
+.voter-detail-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.voter-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
+.voter-unlock{background:#198754}
+.voter-copy{background:#edf6fd;color:#225478;border:1px solid #d4e7f5}
+.voter-empty{padding:20px;text-align:center;color:#6e8194;border:1px dashed #cfdde8;border-radius:12px}
+@media(max-width:800px){.voter-search-grid,.voter-detail-grid,.voter-preview{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -177,7 +191,7 @@ file=&lt;source.pdf&gt;</pre><p style="margin-top:12px">Response: সরাস�
         <div class="paybox">
           <div class="form-grid">
             <div class="field"><label>Admin bKash Number</label><input id="adminBkashNumber" type="text" inputmode="numeric" placeholder="01XXXXXXXXX"></div>
-            <div class="field"><label>PDF Price (৳)</label><input id="adminWebPrice" type="number" min="0"></div>
+            <div class="field"><label>PDF Price (৳)</label><input id="adminWebPrice" type="number" min="0"></div><div class="field"><label>Voter Search Full Details Price (৳)</label><input id="adminVoterSearchPrice" type="number" min="0"></div>
           </div>
           <button class="btn" onclick="savePaymentSettings()">Settings Save করুন</button><div id="paymentSettingsStatus" class="status"></div>
         </div>
@@ -274,6 +288,26 @@ file=&lt;source.pdf&gt;</pre><p style="margin-top:12px">Response: সরাস�
 </section>
 
 <section id="customerHome" class="card page hidden"><h2>Sign to Server</h2><p>সাইন কপি আপলোড করে তথ্য যাচাই করুন। তারপর PDF তৈরি করুন।</p><div class="row"><input id="source" type="file" accept="application/pdf"><button class="btn" onclick="parseSource()">তথ্য যাচাই করুন</button></div><div id="cstatus" class="status">Source PDF নির্বাচন করুন।</div></section>
+      <section id="voterSearchAllBD" class="card page hidden">
+  <h2>Voter Search All BD</h2>
+  <p>জেলা ও উপজেলা দিয়ে জন্ম তারিখ/নাম/পিতার নাম/মাতার নামের ভিত্তিতে ভোটার তথ্য খুঁজুন। প্রথমে সংক্ষিপ্ত ফলাফল দেখাবে; Balance থেকে credit থাকলে Full Details unlock করা যাবে।</p>
+  <div class="paybox">
+    <div class="voter-search-grid">
+      <div class="field"><label>জেলা *</label><input id="voterDistrict" placeholder="যেমন: সাতক্ষীরা"></div>
+      <div class="field"><label>উপজেলা *</label><input id="voterUpazila" placeholder="যেমন: সাতক্ষীরা সদর উপজেলা"></div>
+      <div class="field"><label>জন্ম তারিখ</label><input id="voterDob" type="text" placeholder="YYYY-MM-DD / DD-MM-YYYY"></div>
+      <div class="field"><label>নাম</label><input id="voterName" placeholder="ভোটারের নাম"></div>
+      <div class="field"><label>পিতার নাম</label><input id="voterFather" placeholder="পিতার নাম"></div>
+      <div class="field"><label>মাতার নাম</label><input id="voterMother" placeholder="মাতার নাম"></div>
+    </div>
+    <div class="actions">
+      <span id="voterSearchPriceNote" class="muted">Full Details unlock price: ৳1</span>
+      <button class="btn" id="voterSearchBtn" onclick="searchVotersAllBD()">🔎 Search</button>
+    </div>
+    <div id="voterSearchStatus" class="status">জেলা ও উপজেলা দিন, তারপর Search করুন।</div>
+  </div>
+  <div id="voterSearchResults" class="voter-results"></div>
+</section>
       <section id="customerData" class="card page hidden"><h2>তথ্য যাচাই</h2><p>PDF তৈরি করার আগে প্রয়োজন হলে তথ্য edit করুন।</p><div id="dataForm" class="form-grid"></div><div class="actions"><button class="btn secondary" onclick="clearData()">Clear</button><button id="generateBtn" class="btn" onclick="generatePdf()">Sign to Server</button></div></section>
 
       <section id="buyCredits" class="card page hidden">
@@ -306,8 +340,8 @@ function show(id){document.querySelectorAll(".page").forEach(x=>x.classList.add(
 function toggleMenu(){const side=$("sideNav");side.classList.toggle("open");$("menuOverlay").classList.toggle("open")}
 function closeMenu(){$("sideNav")?.classList.remove("open");$("menuOverlay")?.classList.remove("open")}
 function navItem(label,id){const b=document.createElement("button");b.textContent=label;b.onclick=()=>{show(id);document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");$("title").textContent=label;loadForPage(id)};return b}
-function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Sign to Server","customerHome"),navItem("Auto Birth Pdf Make","birthReference"),navItem("Make History","makeHistory"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Sign to Server BG Image","background"),navItem("Birth Pdf Make Background Image","birthBackground"),navItem("Pricing","pricing"),navItem("API Management","apiManagement"),navItem("API Request History","apiRequests"));}else{n.append(navItem("Sign to Server","customerHome"),navItem("Auto Birth Pdf Make","birthReference"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
-async function loadForPage(id){if(id==="birthReference"){loadBirthReference();}if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="birthBackground")await loadBirthBackgroundAdmin();if(id==="pricing")await loadAdmin();if(id==="apiManagement")await loadApiManagement();if(id==="apiRequests")await loadApiRequests();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
+function buildNav(){const n=$("nav");n.innerHTML="";if(me.role==="admin"){n.append(navItem("Dashboard","adminDashboard"),navItem("Sign to Server","customerHome"),navItem("Voter Search All BD","voterSearchAllBD"),navItem("Auto Birth Pdf Make","birthReference"),navItem("Make History","makeHistory"),navItem("Admin Message","adminMessage"),navItem("bKash Payments","adminPayments"),navItem("Sign to Server BG Image","background"),navItem("Birth Pdf Make Background Image","birthBackground"),navItem("Pricing","pricing"),navItem("API Management","apiManagement"),navItem("API Request History","apiRequests"));}else{n.append(navItem("Sign to Server","customerHome"),navItem("Voter Search All BD","voterSearchAllBD"),navItem("Auto Birth Pdf Make","birthReference"),navItem("Buy Credits / bKash","buyCredits"),navItem("Payment History","paymentHistory"),navItem("My Account","profile"),navItem("Download History","history"));}}
+async function loadForPage(id){if(id==="voterSearchAllBD"){await loadVoterSearchConfig();}if(id==="birthReference"){loadBirthReference();}if(id==="adminDashboard")await loadAdmin();if(id==="makeHistory")await loadGenerationHistory(false);if(id==="adminMessage")await loadAnnouncement(true);if(id==="adminPayments")await loadAdminPayments();if(id==="background")await loadBg();if(id==="birthBackground")await loadBirthBackgroundAdmin();if(id==="pricing")await loadAdmin();if(id==="apiManagement")await loadApiManagement();if(id==="apiRequests")await loadApiRequests();if(id==="buyCredits")await loadStatus();if(id==="paymentHistory")await loadMyPayments();if(id==="history")await loadHistory();if(id==="profile")await loadProfile()}
 async function login(e){e.preventDefault();$("loginError").classList.add("hidden");const fd=new FormData();fd.append("email",$("email").value);fd.append("password",$("password").value);try{const r=await fetch("/api/auth/login",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok){throw new Error(x.detail||"Login failed")}await boot()}catch(e){$("loginError").textContent=e.message;$("loginError").classList.remove("hidden")}}
 async function register(e){e.preventDefault();$("regError").classList.add("hidden");const fd=new FormData();fd.append("full_name",$("regName").value);fd.append("email",$("regEmail").value);fd.append("mobile",$("regMobile").value);fd.append("password",$("regPassword").value);fd.append("confirm_password",$("regConfirm").value);try{const r=await fetch("/api/auth/register",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"Registration failed");await boot()}catch(e){$("regError").textContent=e.message;$("regError").classList.remove("hidden")}}
 async function boot(){try{const r=await fetch("/api/auth/me",{credentials:"same-origin"});if(!r.ok){showAuth("login");return}const x=await r.json();me=x.user;$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("login").classList.add("hidden");$("register").classList.add("hidden");$("app").classList.remove("hidden");buildNav();document.querySelectorAll(".admin-only-birth-bg").forEach(el=>el.style.display=me.role==="admin"?"block":"none");const first=me.role==="admin"?"adminDashboard":"customerHome";show(first);$("title").textContent=me.role==="admin"?"Dashboard":"Sign to Server";await loadForPage(first);await loadAnnouncement(false)}catch(e){console.error(e)}}
@@ -344,7 +378,98 @@ function showPdfLoading(title="PDF তৈরি হচ্ছে...", sub="অন
 }
 function hidePdfLoading(){const o=$("pdfLoadingOverlay"); if(o)o.classList.remove("show")}
 async function generatePdf(){collect();if(!data.national_id)return alert("NID number required");const btn=$("generateBtn");const original=btn.innerHTML;btn.disabled=true;btn.classList.add("loading-btn");btn.innerHTML='<span class="spinner"></span> প্রস্তুত হচ্ছে…';setStatus("PDF তৈরি হচ্ছে…");showPdfLoading("Sign to Server PDF তৈরি হচ্ছে...","আপনার PDF প্রস্তুত হচ্ছে। অনুগ্রহ করে অপেক্ষা করুন।");try{const fd=new FormData();fd.append("data_json",JSON.stringify(data));const r=await fetch("/api/customer/generate",{method:"POST",body:fd,credentials:"same-origin"});if(!r.ok){let x={};try{x=await r.json()}catch(_){ }throw new Error(x.detail||"PDF generation failed")}const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`V1_${String(data.national_id).replace(/[^0-9A-Za-z_-]/g,"")||"report"}.pdf`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),15000);const balance=r.headers.get("X-PDF-Balance");if(balance!==null){$("balance").textContent=balance;$("customerBalanceCopy").textContent=balance}setStatus("PDF তৈরি হয়েছে এবং device download শুরু হয়েছে।");await loadHistory()}catch(e){alert(e.message||"PDF generation failed");setStatus("PDF তৈরি করা যায়নি।")}finally{btn.disabled=false;btn.classList.remove("loading-btn");btn.innerHTML=original;hidePdfLoading()}}
-async function loadStatus(){const r=await fetch("/api/customer/status",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("bkashNumber").textContent=x.bkash_number}
+let voterSearchResults={};
+async function loadVoterSearchConfig(){
+  try{
+    const r=await fetch("/api/customer/voter-search/config",{credentials:"same-origin"});
+    const x=await r.json();
+    if($('voterSearchPriceNote')) $('voterSearchPriceNote').textContent=`Full Details unlock price: ৳${x.price??1}`;
+    if(!r.ok || !x.configured){
+      if($('voterSearchStatus')) $('voterSearchStatus').textContent="DB Clouds API এখনও server-এ configure করা হয়নি।";
+    }
+  }catch(_){ }
+}
+function voterField(label,value){return `<div><b>${esc(label)}</b>${esc(value||"—")}</div>`}
+function voterCopyText(r){return [
+  `নাম: ${r.name||""}`,
+  `ভোটার নম্বর: ${r.voter_no||""}`,
+  `পিতার নাম: ${r.father_name||""}`,
+  `মাতার নাম: ${r.mother_name||""}`,
+  `জন্ম তারিখ: ${r.birth_date||""}`,
+  `পেশা: ${r.profession||""}`,
+  `জেলা: ${r.district||""}`,
+  `উপজেলা: ${r.upazila||""}`,
+  `গ্রাম: ${r.village||""}`,
+  `ডাকঘর: ${r.post_office||""}`,
+  `পোস্ট কোড: ${r.postcode||""}`
+].join("\n")}
+function renderVoterResults(results){
+  const box=$('voterSearchResults');
+  if(!box)return;
+  if(!results.length){box.innerHTML='<div class="voter-empty">কোনো ফলাফল পাওয়া যায়নি।</div>';return;}
+  box.innerHTML=results.map((p,i)=>{
+    const full=p.full||null;
+    if(full){
+      return `<article class="voter-card" id="voter-card-${p.result_id}">
+        <h3>Result #${i+1} — Full Details</h3>
+        <div class="voter-detail-grid">
+          ${voterField('নাম',full.name)}${voterField('ভোটার নম্বর',full.voter_no)}
+          ${voterField('পিতার নাম',full.father_name)}${voterField('মাতার নাম',full.mother_name)}
+          ${voterField('জন্ম তারিখ',full.birth_date)}${voterField('পেশা',full.profession)}
+          ${voterField('জেলা',full.district)}${voterField('উপজেলা',full.upazila)}
+          ${voterField('গ্রাম',full.village)}${voterField('ডাকঘর',full.post_office)}
+          ${voterField('পোস্ট কোড',full.postcode)}
+        </div>
+        <div class="voter-actions"><button class="btn voter-copy" onclick="copyVoterResult(${p.result_id})">📋 Copy Full Details</button></div>
+      </article>`;
+    }
+    return `<article class="voter-card" id="voter-card-${p.result_id}">
+      <h3>Result #${i+1}</h3>
+      <div class="voter-preview">${voterField('নাম',p.name)}${voterField('ভোটার নম্বর',p.voter_no)}${voterField('জেলা',p.district)}${voterField('উপজেলা',p.upazila)}</div>
+      <div class="voter-actions"><button class="btn voter-unlock" onclick="unlockVoterResult(${p.result_id})">🔓 Full Details Unlock</button></div>
+    </article>`;
+  }).join("");
+}
+async function searchVotersAllBD(){
+  const btn=$('voterSearchBtn');
+  const fd=new FormData();
+  fd.append('district',$('voterDistrict').value.trim());
+  fd.append('upazila',$('voterUpazila').value.trim());
+  fd.append('dob',$('voterDob').value.trim());
+  fd.append('name',$('voterName').value.trim());
+  fd.append('father_name',$('voterFather').value.trim());
+  fd.append('mother_name',$('voterMother').value.trim());
+  if(!fd.get('district')||!fd.get('upazila'))return $('voterSearchStatus').textContent='জেলা এবং উপজেলা দিন।';
+  btn.disabled=true;btn.classList.add('loading-btn');btn.innerHTML='<span class="spinner"></span> Searching…';
+  $('voterSearchStatus').textContent='DB Clouds থেকে ফলাফল খোঁজা হচ্ছে…';$('voterSearchResults').innerHTML='';voterSearchResults={};
+  try{
+    const r=await fetch('/api/customer/voter-search',{method:'POST',body:fd,credentials:'same-origin'});
+    const x=await r.json();if(!r.ok)throw new Error(x.detail||'Search failed');
+    (x.results||[]).forEach(p=>voterSearchResults[p.result_id]=p);
+    renderVoterResults(x.results||[]);
+    $('voterSearchStatus').textContent=`${x.count||0} টি ফলাফল পাওয়া গেছে। Full Details দেখতে প্রতিটি result unlock করুন।`;
+  }catch(e){$('voterSearchStatus').textContent=e.message||'Search failed';}
+  finally{btn.disabled=false;btn.classList.remove('loading-btn');btn.innerHTML='🔎 Search';}
+}
+async function unlockVoterResult(id){
+  const p=voterSearchResults[id];if(!p)return;
+  const price=$('voterSearchPriceNote')?.textContent||'';
+  if(!confirm(`Full Details unlock করতে ${price.replace('Full Details unlock price: ','')} credit কাটা হবে। Continue?`))return;
+  try{
+    const r=await fetch(`/api/customer/voter-search/${id}/unlock`,{method:'POST',credentials:'same-origin'});
+    const x=await r.json();if(!r.ok)throw new Error(x.detail||'Unlock failed');
+    p.full=x.result;p.unlocked=true;voterSearchResults[id]=p;
+    $('balance').textContent=x.balance;$('customerBalanceCopy').textContent=x.balance;
+    renderVoterResults(Object.values(voterSearchResults));
+  }catch(e){alert(e.message||'Unlock failed');}
+}
+async function copyVoterResult(id){
+  const p=voterSearchResults[id];if(!p?.full)return;
+  const text=voterCopyText(p.full);
+  try{await navigator.clipboard.writeText(text);alert('Full Details copied.');}
+  catch(_){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();alert('Full Details copied.');}
+}
+async function loadStatus(){const r=await fetch("/api/customer/status",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("balance").textContent=x.balance;$("customerBalanceCopy").textContent=x.balance;$("bkashNumber").textContent=x.bkash_number;if($("voterSearchPriceNote"))$("voterSearchPriceNote").textContent=`Full Details unlock price: ৳${x.voter_search_price??1}`;if($("adminVoterSearchPrice"))$("adminVoterSearchPrice").value=x.voter_search_price??1}
 async function submitPayment(){const amount=$("payAmount").value;const trx=$("trxId").value.trim();if(!amount||Number(amount)<=0)return alert("Amount দিন");if(!trx)return alert("Transaction ID দিন");const fd=new FormData();fd.append("amount",amount);fd.append("transaction_id",trx);fd.append("sender_bkash",$("senderBkash").value.trim());fd.append("note",$("paymentNote").value.trim());const r=await fetch("/api/customer/payments",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("payStatus").textContent=r.ok?x.message:(x.detail||"Payment failed");if(r.ok){$("payAmount").value="";$("senderBkash").value="";$("trxId").value="";$("paymentNote").value="";await loadMyPayments()}}
 async function loadMyPayments(){const r=await fetch("/api/customer/payments",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("myPayments").innerHTML=(x.payments||[]).map(p=>`<tr><td>${esc(p.created_at)}</td><td>৳${esc(p.amount)}</td><td>${esc(p.credits)}</td><td>${esc(p.transaction_id)}</td><td>${p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>'}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো payment request নেই।</td></tr>'}
 async function loadHistory(){const r=await fetch("/api/customer/history",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("historyBody").innerHTML=(x.history||[]).map(h=>`<tr><td>${esc(h.id)}</td><td>${esc(h.nid)}</td><td>${esc(h.filename)}</td><td>${esc(h.charged)}</td><td>${esc(h.created_at)}</td></tr>`).join("")||'<tr><td colspan="5" class="empty">কোনো history নেই।</td></tr>'}
@@ -394,7 +519,7 @@ async function loadApiRequests(){
   await loadApiRequestClients();const cid=$("apiRequestClientFilter")?.value||0;const r=await fetch(`/api/admin/api/requests?limit=1000&client_id=${encodeURIComponent(cid)}`,{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("apiRequestsBody").innerHTML=(x.requests||[]).map(h=>`<tr><td>${esc(formatDhakaTime(h.created_at))}</td><td>${esc(h.client_name)}</td><td><code>${esc(h.request_id)}</code></td><td>${esc(h.nid||"")}</td><td>${esc(h.person_name||"")}</td><td>${esc(h.dob||"")}</td><td>${h.status==='success'?'<span class="tag green">Success</span>':'<span class="tag red">Failed</span>'}</td><td>${esc(h.processing_ms||0)}</td></tr>`).join("")||'<tr><td colspan="8" class="empty">কোনো API request নেই।</td></tr>';
 }
 
-async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();}
+async function loadAdmin(){const r=await fetch("/api/admin/customers",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("customerCount").textContent=(x.customers||[]).length;$("adminPrice").textContent="—";try{const s=await (await fetch("/api/customer/status",{credentials:"same-origin"})).json();$("adminPrice").textContent=s.price;$("price").value=s.price;$("adminWebPrice").value=s.price;$("adminVoterSearchPrice").value=s.voter_search_price??1;$("adminBkashNumber").value=s.bkash_number}catch(_){ }await loadBg();}
 
 function formatDhakaTime(value){if(!value)return "";const d=new Date(String(value).endsWith("Z")?value:value+"Z");if(Number.isNaN(d.getTime()))return String(value);return d.toLocaleString("en-GB",{timeZone:"Asia/Dhaka",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:true});}
 
@@ -463,7 +588,7 @@ function filterPayments(status){paymentFilter=status;renderAdminPayments()}
 function renderAdminPayments(){let payments=paymentFilter==="all"?allAdminPayments:allAdminPayments.filter(p=>p.status===paymentFilter);$("paymentBody").innerHTML=payments.map(p=>{const status=p.status==="approved"?'<span class="tag green">Approved</span>':p.status==="rejected"?'<span class="tag red">Rejected</span>':'<span class="tag yellow">Pending</span>';const action=p.status==="pending"?`<div class="small-actions"><button class="btn success" onclick="approvePayment(${p.id})">Approve</button><button class="btn danger" onclick="rejectPayment(${p.id})">Reject</button></div>`:"-";return `<tr><td><b>${esc(p.full_name||"Customer")}</b><br><small>${esc(p.email||"")}</small></td><td>৳${esc(p.amount||0)}</td><td>${esc(p.sender_bkash||"")}</td><td><b>${esc(p.transaction_id||"")}</b></td><td>${esc(p.note||"")}</td><td>${status}</td><td>${action}</td></tr>`}).join("")||'<tr><td colspan="7" class="empty">কোনো payment request পাওয়া যায়নি।</td></tr>'}
 async function approvePayment(id){if(!confirm("এই payment verify করে approve করবেন?"))return;const r=await fetch("/api/admin/payments/"+id+"/approve",{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await loadAdminPayments();alert(x.message||"Approved")}
 async function rejectPayment(id){if(!confirm("এই payment request reject করবেন?"))return;const r=await fetch("/api/admin/payments/"+id+"/reject",{method:"POST",credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");await loadAdminPayments()}
-async function savePaymentSettings(){const n=$("adminBkashNumber").value.trim();const price=$("adminWebPrice").value;try{const fd=new FormData();fd.append("bkash_number",n);const r=await fetch("/api/admin/bkash",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"bKash save failed");const fp=new FormData();fp.append("web_price",price);const rp=await fetch("/api/admin/price",{method:"POST",body:fp,credentials:"same-origin"});const xp=await rp.json();if(!rp.ok)throw new Error(xp.detail||"Price save failed");$("paymentSettingsStatus").textContent="Settings saved successfully.";await loadStatus()}catch(e){$("paymentSettingsStatus").textContent=e.message}}
+async function savePaymentSettings(){const n=$("adminBkashNumber").value.trim();const price=$("adminWebPrice").value;const voterPrice=$("adminVoterSearchPrice").value;try{const fd=new FormData();fd.append("bkash_number",n);const r=await fetch("/api/admin/bkash",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)throw new Error(x.detail||"bKash save failed");const fp=new FormData();fp.append("web_price",price);fp.append("voter_search_price",voterPrice);const rp=await fetch("/api/admin/price",{method:"POST",body:fp,credentials:"same-origin"});const xp=await rp.json();if(!rp.ok)throw new Error(xp.detail||"Price save failed");$("paymentSettingsStatus").textContent="Settings saved successfully.";await loadStatus()}catch(e){$("paymentSettingsStatus").textContent=e.message}}
 function loadBirthReference(){}
 function syncBirthTopFields(){
   const a=$("birthRegNo"), b=$("birthRegNoCopy"), d=$("birthDob"), dc=$("birthDobCopy");
@@ -535,7 +660,7 @@ async function setBackground(){const f=$("bg").files[0];if(!f)return alert("Gene
 async function setBirthBackground(){const f=$("birthAdminBg").files[0];if(!f)return alert("Auto Birth PDF background photo নির্বাচন করুন");const fd=new FormData();fd.append("file",f);const r=await fetch("/api/admin/birth-background",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();$("birthBgStatus").textContent=r.ok?"Auto Birth background set: "+x.selected:(x.detail||"Upload failed");if(r.ok)loadBirthBackgroundAdmin()}
 async function loadBg(){const r=await fetch("/api/admin/background",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const name=x.background?.name||"None";$("bgStatus").textContent=x.background?.name?"Current Sign to Server background: "+name:"No Sign to Server background set";$("backgroundName").textContent=name}
 async function loadBirthBackgroundAdmin(){const r=await fetch("/api/admin/birth-background",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const name=x.background?.name||"None";if($("birthBgStatus"))$("birthBgStatus").textContent=x.background?.name?"Current Birth Pdf Make background: "+name:"No Birth Pdf Make background set"}
-async function savePrice(){const fd=new FormData();fd.append("web_price",$("price").value);const r=await fetch("/api/admin/price",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");$("adminPrice").textContent=x.web_price;$("adminWebPrice").value=x.web_price;alert("Price saved")}
+async function savePrice(){const fd=new FormData();fd.append("web_price",$("price").value);fd.append("voter_search_price",$("adminVoterSearchPrice")?.value||1);const r=await fetch("/api/admin/price",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return alert(x.detail||"Failed");$("adminPrice").textContent=x.web_price;$("adminWebPrice").value=x.web_price;if($("adminVoterSearchPrice"))$("adminVoterSearchPrice").value=x.voter_search_price??1;alert("Price saved")}
 async function loadAnnouncement(showAdmin){const r=await fetch(showAdmin?"/api/admin/announcement":"/api/announcement",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();const msg=x.message||"";if(showAdmin){$("adminAnnouncement").value=msg;$("announcementStatus").textContent=msg?"Current message loaded.":"No message saved."}const bar=$("announcementBar"),track=$("announcementTrack");track.textContent=msg;if(msg){bar.classList.add("show")}else{bar.classList.remove("show")}}
 async function saveAnnouncement(){const fd=new FormData();fd.append("message",$("adminAnnouncement").value);const r=await fetch("/api/admin/announcement",{method:"POST",body:fd,credentials:"same-origin"});const x=await r.json();if(!r.ok)return $("announcementStatus").textContent=x.detail||"Save failed";$("announcementStatus").textContent="Message saved.";await loadAnnouncement(false)}
 async function loadProfile(){const r=await fetch("/api/user/profile",{credentials:"same-origin"});if(!r.ok)return;const x=await r.json();$("profileEmail").value=x.user.email||"";$("profileName").value=x.user.full_name||"";$("profileMobile").value=x.user.mobile||"";await loadStatus()}

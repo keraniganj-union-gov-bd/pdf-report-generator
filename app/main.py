@@ -11,7 +11,7 @@ from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -2643,6 +2643,122 @@ async def api_generate_pdf(file: UploadFile=File(...), x_api_key: str | None = H
 # ============================================================
 # DB Clouds — Voter Search All BD
 # ============================================================
+def _dbclouds_location_base() -> str:
+    """
+    Build the administrative-location API base from DBCLOUDS_API_URL.
+    Example:
+      https://dbclouds.store/api/v1/search-voter
+      -> https://dbclouds.store/api
+    """
+    parts = urlsplit(DBCLOUDS_API_URL)
+    if not parts.scheme or not parts.netloc:
+        return ""
+    return f"{parts.scheme}://{parts.netloc}/api"
+
+
+def _dbclouds_public_location_request(path: str, query: dict | None = None):
+    """Server-side proxy for DB Clouds administrative location data."""
+    base = _dbclouds_location_base()
+    if not base:
+        raise HTTPException(503, "Location service is not configured")
+
+    url = base.rstrip("/") + "/" + path.lstrip("/")
+    if query:
+        query = {k: v for k, v in query.items() if v is not None and str(v) != ""}
+        if query:
+            url += "?" + urlencode(query)
+
+    req = Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "V1-PDF-Generator/1.0",
+        },
+        method="GET",
+    )
+    try:
+        with urlopen(req, timeout=DBCLOUDS_API_TIMEOUT) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            status = getattr(resp, "status", 200)
+    except Exception:
+        # Keep provider details out of the customer-facing response.
+        raise HTTPException(502, "Location data is temporarily unavailable")
+
+    if status < 200 or status >= 300:
+        raise HTTPException(502, "Location data is temporarily unavailable")
+    try:
+        return json.loads(body)
+    except Exception:
+        raise HTTPException(502, "Location data is temporarily unavailable")
+
+
+def _location_items(raw, preferred_keys: tuple[str, ...]) -> list:
+    """Accept common DB Clouds JSON shapes without exposing provider details."""
+    if isinstance(raw, list):
+        return raw
+
+    if isinstance(raw, dict):
+        for key in preferred_keys + ("data", "results", "records", "items"):
+            value = raw.get(key)
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                return [value]
+
+    return []
+
+
+def _location_name(item) -> str:
+    if isinstance(item, str):
+        return item.strip()
+    if isinstance(item, dict):
+        for key in (
+            "name", "bn_name", "district", "district_name",
+            "upazila", "upazila_name", "subdistrict", "subdistrict_name",
+        ):
+            value = item.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+    return ""
+
+
+@app.get("/api/customer/voter-locations/districts")
+def voter_location_districts(web_session: str | None = Cookie(default=None)):
+    require_customer(web_session)
+    raw = _dbclouds_public_location_request("districts")
+    items = _location_items(raw, ("districts",))
+    names = []
+    seen = set()
+    for item in items:
+        name = _location_name(item)
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+    return {"success": True, "districts": names}
+
+
+@app.get("/api/customer/voter-locations/upazilas")
+def voter_location_upazilas(
+    district: str = "",
+    web_session: str | None = Cookie(default=None),
+):
+    require_customer(web_session)
+    district = district.strip()
+    if not district:
+        raise HTTPException(400, "District is required")
+
+    raw = _dbclouds_public_location_request("upazilas/" + district)
+    items = _location_items(raw, ("upazilas",))
+    names = []
+    seen = set()
+    for item in items:
+        name = _location_name(item)
+        if name and name not in seen:
+            seen.add(name)
+            names.append(name)
+    return {"success": True, "district": district, "upazilas": names}
+
+
 def _dbclouds_configured() -> bool:
     return bool(DBCLOUDS_API_URL and DBCLOUDS_API_KEY)
 

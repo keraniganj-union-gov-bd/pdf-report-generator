@@ -11,7 +11,7 @@ from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode, urlsplit, quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -2747,7 +2747,7 @@ def voter_location_upazilas(
     if not district:
         raise HTTPException(400, "District is required")
 
-    raw = _dbclouds_public_location_request("upazilas/" + district)
+    raw = _dbclouds_public_location_request("upazilas/" + quote(district, safe=""))
     items = _location_items(raw, ("upazilas",))
     names = []
     seen = set()

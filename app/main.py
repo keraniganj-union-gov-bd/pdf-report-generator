@@ -11,7 +11,7 @@ from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode, urlsplit, quote
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -2136,21 +2136,6 @@ def customer_status(web_session: str | None = Cookie(default=None)):
 # CUSTOMER MANAGEMENT
 # ============================================================
 
-@app.get("/api/admin/dbclouds-balance")
-def admin_dbclouds_balance(web_session: str | None = Cookie(default=None)):
-    """Return the locally saved last-known DB Clouds balance.
-    This endpoint never calls DB Clouds and therefore never consumes a hit.
-    """
-    require_admin(web_session)
-    raw_balance=prod_setting("dbclouds_last_balance","")
-    checked_at=prod_setting("dbclouds_last_balance_checked_at","")
-    balance=None
-    if raw_balance:
-        try: balance=int(raw_balance)
-        except (TypeError,ValueError): balance=None
-    return {"success":True,"balance":balance,"checked_at":checked_at,"source":"last_successful_search_response","live_check":False}
-
-
 @app.get("/api/admin/customers")
 def admin_customers(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
@@ -2762,7 +2747,7 @@ def voter_location_upazilas(
     if not district:
         raise HTTPException(400, "District is required")
 
-    raw = _dbclouds_public_location_request("upazilas/" + district)
+    raw = _dbclouds_public_location_request("upazilas/" + quote(district, safe=""))
     items = _location_items(raw, ("upazilas",))
     names = []
     seen = set()
@@ -2776,6 +2761,38 @@ def voter_location_upazilas(
 
 def _dbclouds_configured() -> bool:
     return bool(DBCLOUDS_API_URL and DBCLOUDS_API_KEY)
+
+
+def _dbclouds_save_last_known_balance(raw):
+    """Save DB Clouds hits_remaining from a successful API response.
+
+    This never makes another provider request, so showing this value does
+    not consume a DB Clouds credit. Only a successful voter-search response
+    should update it.
+    """
+    if not isinstance(raw, dict):
+        return None
+    value = raw.get("hits_remaining")
+    if value is None:
+        # Be tolerant of a nested response shape.
+        for key in ("meta", "usage", "balance"):
+            nested = raw.get(key)
+            if isinstance(nested, dict) and nested.get("hits_remaining") is not None:
+                value = nested.get("hits_remaining")
+                break
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return None
+    if value < 0:
+        return None
+    try:
+        prod_set_setting("dbclouds_last_hits_remaining", str(value))
+        prod_set_setting("dbclouds_last_balance_at", datetime.utcnow().isoformat())
+    except Exception:
+        # A balance display must never break a successful voter search.
+        pass
+    return value
 
 
 def _dbclouds_request(payload: dict):
@@ -2808,9 +2825,31 @@ def _dbclouds_request(payload: dict):
     if status < 200 or status >= 300:
         raise HTTPException(502, f"DB Clouds API returned HTTP {status}")
     try:
-        return json.loads(body)
+        raw = json.loads(body)
     except Exception:
         raise HTTPException(502, "DB Clouds API did not return valid JSON")
+
+    # Successful search response থেকে last-known credit count save করি.
+    # This does not call DB Clouds again and therefore does not consume a credit.
+    _dbclouds_save_last_known_balance(raw)
+    return raw
+
+
+@app.get("/api/admin/dbclouds-balance")
+def admin_dbclouds_balance(web_session: str | None = Cookie(default=None)):
+    require_admin(web_session)
+    value = prod_setting("dbclouds_last_hits_remaining", "")
+    updated = prod_setting("dbclouds_last_balance_at", "")
+    try:
+        balance_value = int(value) if value != "" else None
+    except (TypeError, ValueError):
+        balance_value = None
+    return {
+        "success": True,
+        "balance": balance_value,
+        "last_updated": updated,
+        "source": "last_successful_voter_search",
+    }
 
 
 def _dbclouds_results(raw):
@@ -2827,42 +2866,6 @@ def _dbclouds_results(raw):
         if any(k in raw for k in ("name", "voter_no", "voter_number", "father_name", "mother_name")):
             return [raw]
     return []
-
-
-def _dbclouds_extract_hits_remaining(raw):
-    """Read remaining DB Clouds hits from the paid search response only.
-    No extra request is made, so this cannot consume another provider credit.
-    """
-    if not isinstance(raw, dict):
-        return None
-    keys=("hits_remaining","hit_remaining","remaining_hits","credits_remaining","remaining_credit","balance")
-    for key in keys:
-        value=raw.get(key)
-        if value is not None:
-            try: return int(value)
-            except (TypeError,ValueError): pass
-    for parent_key in ("meta","usage","account","quota"):
-        parent=raw.get(parent_key)
-        if isinstance(parent,dict):
-            for key in keys:
-                value=parent.get(key)
-                if value is not None:
-                    try: return int(value)
-                    except (TypeError,ValueError): pass
-    return None
-
-
-def _save_dbclouds_last_balance(raw):
-    """Persist the last balance reported by a real DB Clouds search response."""
-    remaining=_dbclouds_extract_hits_remaining(raw)
-    if remaining is None: return None
-    checked_at=datetime.utcnow().isoformat()
-    try:
-        prod_set_setting("dbclouds_last_balance",str(remaining))
-        prod_set_setting("dbclouds_last_balance_checked_at",checked_at)
-    except Exception as e:
-        print("DBCLOUDS BALANCE SAVE ERROR:",repr(e))
-    return remaining
 
 
 def _normalize_voter_result(item: dict) -> dict:
@@ -2887,18 +2890,6 @@ def _normalize_voter_result(item: dict) -> dict:
         "gender": pick("gender", "sex"),
         "address": pick("address", "full_address"),
     }
-
-
-def _mask_last_two(value: str) -> str:
-    """Show only the last two characters of a person's name in search preview."""
-    value = str(value or "").strip()
-    if not value:
-        return ""
-    chars = list(value)
-    if len(chars) <= 2:
-        return "*" * len(chars)
-    return "*" * (len(chars) - 2) + "".join(chars[-2:])
-
 
 def _mask_voter_number(value: str) -> str:
     """Hide every voter-number digit in the locked search preview."""
@@ -2960,9 +2951,6 @@ async def voter_search_all_bd(
     # Do not send empty optional parameters when using the GET API.
     payload = {k: v for k, v in payload.items() if v}
     raw = _dbclouds_request(payload)
-    # DB Clouds includes hits_remaining in this same paid search response.
-    # Save it locally; do NOT make a second request just to check balance.
-    _save_dbclouds_last_balance(raw)
     items = _dbclouds_results(raw)
     normalized = [_normalize_voter_result(x) for x in items if isinstance(x, dict)]
     normalized = [x for x in normalized if any(x.values())]
@@ -2971,10 +2959,12 @@ async def voter_search_all_bd(
         sid = _save_voter_search(u["id"], payload, result)
         previews.append({
             "result_id": sid,
-            # Search preview: expose only the last 2 characters of names.
-            "name": _mask_last_two(result.get("name", "")),
-            "father_name": _mask_last_two(result.get("father_name", "")),
-            "mother_name": _mask_last_two(result.get("mother_name", "")),
+            # Search preview: name are fully visible.
+            "name": result.get("name", ""),
+
+            # Search preview: father/spouse and mother names are fully visible.
+            "father_name": result.get("father_name", ""),
+            "mother_name": result.get("mother_name", ""),
 
             # Search preview: voter number is completely masked.
             "voter_no": _mask_voter_number(result.get("voter_no", "")),

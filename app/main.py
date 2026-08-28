@@ -2917,10 +2917,12 @@ async def voter_search_all_bd(
         sid = _save_voter_search(u["id"], payload, result)
         previews.append({
             "result_id": sid,
-            # Search preview: expose only the last 2 characters of names.
+            # Search preview: name shows only the last 2 characters.
             "name": _mask_last_two(result.get("name", "")),
-            "father_name": _mask_last_two(result.get("father_name", "")),
-            "mother_name": _mask_last_two(result.get("mother_name", "")),
+
+            # Search preview: father/spouse and mother names are shown fully.
+            "father_name": result.get("father_name", ""),
+            "mother_name": result.get("mother_name", ""),
 
             # Search preview: voter number is completely masked.
             "voter_no": _mask_voter_number(result.get("voter_no", "")),

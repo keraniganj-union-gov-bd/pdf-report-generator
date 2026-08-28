@@ -106,9 +106,9 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "ChangeThisAdminPassword123!")
 #   DBCLOUDS_API_METHOD    = POST (default) or GET
 #   DBCLOUDS_API_KEY_HEADER= X-API-Key (default) or Authorization
 # ---------------------------------------------------------------------------
-DBCLOUDS_API_URL = os.getenv("DBCLOUDS_API_URL", "").strip()
+DBCLOUDS_API_URL = os.getenv("DBCLOUDS_API_URL", "https://dbclouds.store/api/v1/search-voter").strip()
 DBCLOUDS_API_KEY = os.getenv("DBCLOUDS_API_KEY", "").strip()
-DBCLOUDS_API_METHOD = os.getenv("DBCLOUDS_API_METHOD", "POST").strip().upper() or "POST"
+DBCLOUDS_API_METHOD = os.getenv("DBCLOUDS_API_METHOD", "GET").strip().upper() or "GET"
 DBCLOUDS_API_KEY_HEADER = os.getenv("DBCLOUDS_API_KEY_HEADER", "X-API-Key").strip() or "X-API-Key"
 DBCLOUDS_API_TIMEOUT = int(os.getenv("DBCLOUDS_API_TIMEOUT", "25") or 25)
 
@@ -2771,14 +2771,17 @@ async def voter_search_all_bd(
         raise HTTPException(400, "জেলা এবং উপজেলা দিতে হবে")
     if not any((dob, name, father_name, mother_name)):
         raise HTTPException(400, "জন্ম তারিখ, নাম, পিতার নাম বা মাতার নামের অন্তত একটি দিন")
-    payload = {
-        "district": district,
-        "upazila": upazila,
-        "dob": dob,
-        "name": name,
-        "father_name": father_name,
-        "mother_name": mother_name,
-    }
+    # DB Clouds test panel uses these exact query parameter names.
+    # Only send non-empty optional fields so the request matches the tested API shape.
+    payload = {"district": district, "upazila": upazila}
+    if dob:
+        payload["dob"] = dob
+    if name:
+        payload["name"] = name
+    if father_name:
+        payload["father"] = father_name
+    if mother_name:
+        payload["mother"] = mother_name
     raw = _dbclouds_request(payload)
     items = _dbclouds_results(raw)
     normalized = [_normalize_voter_result(x) for x in items if isinstance(x, dict)]

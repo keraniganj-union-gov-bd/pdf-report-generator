@@ -11,7 +11,7 @@ from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
-from urllib.parse import urlencode, urlsplit, quote
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -225,8 +225,6 @@ def prod_init():
             "ALTER TABLE web_generations ADD COLUMN pdf_data TEXT",
             "ALTER TABLE web_generations ADD COLUMN person_name TEXT DEFAULT ''",
             "ALTER TABLE web_generations ADD COLUMN dob VARCHAR(50) DEFAULT ''",
-            "ALTER TABLE api_clients ADD COLUMN credits INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE api_requests ADD COLUMN service_key VARCHAR(100) DEFAULT ''",
         ]
         for ddl in migrations:
             try:
@@ -235,38 +233,6 @@ def prod_init():
             except Exception:
                 pass
 
-        c.execute(text("""
-            CREATE TABLE IF NOT EXISTS web_logs (
-                id INTEGER PRIMARY KEY, user_id INTEGER, event_type VARCHAR(80) NOT NULL,
-                description TEXT NOT NULL DEFAULT '', created_at VARCHAR(40) NOT NULL
-            )
-        """))
-        c.execute(text("""
-            CREATE TABLE IF NOT EXISTS web_transactions (
-                id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, transaction_type VARCHAR(40) NOT NULL,
-                service_key VARCHAR(100) DEFAULT '', amount INTEGER NOT NULL DEFAULT 0, balance_after INTEGER NOT NULL DEFAULT 0,
-                reference VARCHAR(120) DEFAULT '', description TEXT DEFAULT '', created_at VARCHAR(40) NOT NULL
-            )
-        """))
-        c.execute(text("""
-            CREATE TABLE IF NOT EXISTS customer_service_prices (
-                id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, service_key VARCHAR(100) NOT NULL,
-                price INTEGER NOT NULL DEFAULT 0, UNIQUE(user_id, service_key)
-            )
-        """))
-        c.execute(text("""
-            CREATE TABLE IF NOT EXISTS api_services (
-                id INTEGER PRIMARY KEY, service_key VARCHAR(100) UNIQUE NOT NULL, name VARCHAR(255) NOT NULL,
-                price INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1, created_at VARCHAR(40) NOT NULL
-            )
-        """))
-        c.execute(text("""
-            CREATE TABLE IF NOT EXISTS api_transactions (
-                id INTEGER PRIMARY KEY, client_id INTEGER NOT NULL, transaction_type VARCHAR(40) NOT NULL,
-                amount INTEGER NOT NULL DEFAULT 0, balance_after INTEGER NOT NULL DEFAULT 0,
-                reference VARCHAR(120) DEFAULT '', description TEXT DEFAULT '', created_at VARCHAR(40) NOT NULL
-            )
-        """))
         c.execute(text("""
             CREATE TABLE IF NOT EXISTS api_plans (
                 id INTEGER PRIMARY KEY,
@@ -329,18 +295,11 @@ def prod_init():
                 "VALUES(:id,:e,:p,'admin',1,:t)"
             ), {"id": 1, "e": ADMIN_EMAIL, "p": _hash_password(ADMIN_PASSWORD), "t": datetime.utcnow().isoformat()})
             c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(1,0)"))
-        for key, value in [("web_price","1"),("voter_search_price","120"),("voter_search_match_price","5"),("voter_search_unlock_price","120"),("api_price","1"),("sign_to_server_price","1"),("auto_birth_price","1"),("bkash_number","01925211591"),("whatsapp_group_link","")]:
+        for key, value in [("web_price","1"),("voter_search_price","1"),("api_price","1"),("sign_to_server_price","1"),("auto_birth_price","1"),("bkash_number","01925211591"),("whatsapp_group_link","")]:
             c.execute(text(
                 "INSERT INTO web_settings(key,value) VALUES(:k,:v) "
                 "ON CONFLICT(key) DO NOTHING"
             ), {"k": key, "v": value})
-        c.execute(text("""INSERT INTO api_services(id,service_key,name,price,active,created_at)
-                         VALUES(1,'sign_to_server_pdf','Sign to Server PDF',:p,1,:t)
-                         ON CONFLICT(service_key) DO NOTHING"""), {"p":1,"t":datetime.utcnow().isoformat()})
-        c.execute(text("""INSERT INTO api_services(id,service_key,name,price,active,created_at)
-                         VALUES(2,'auto_birth_pdf','Auto Birth PDF',:p,1,:t)
-                         ON CONFLICT(service_key) DO NOTHING"""), {"p":1,"t":datetime.utcnow().isoformat()})
-
         # Keep the new Sign to Server price backward-compatible with the
         # previous web_price setting on existing installations.
         existing_sign = c.execute(text("SELECT value FROM web_settings WHERE key=:k"), {"k":"sign_to_server_price"}).fetchone()
@@ -408,58 +367,6 @@ def prod_charge(user_id: int, amount: int):
         c.execute(text("UPDATE web_wallets SET credits=:b WHERE user_id=:u"), {"b": new, "u": user_id})
         return new
 
-SERVICE_DEFAULT_SETTINGS = {
-    "sign_to_server": "sign_to_server_price",
-    "auto_birth": "auto_birth_price",
-    "voter_search_match": "voter_search_match_price",
-    "voter_search_unlock": "voter_search_unlock_price",
-}
-
-def service_price(user_id: int, service_key: str) -> int:
-    default = int(prod_setting(SERVICE_DEFAULT_SETTINGS.get(service_key, service_key), "0") or 0)
-    try:
-        with prod_engine.begin() as c:
-            r=c.execute(text("SELECT price FROM customer_service_prices WHERE user_id=:u AND service_key=:s"), {"u":user_id,"s":service_key}).fetchone()
-        return max(0,int(r[0])) if r else max(0,default)
-    except Exception:
-        return max(0,default)
-
-def add_web_log(user_id: int | None, event_type: str, description: str = ""):
-    try:
-        with prod_engine.begin() as c:
-            lid=_next_id(c,"web_logs")
-            c.execute(text("INSERT INTO web_logs(id,user_id,event_type,description,created_at) VALUES(:id,:u,:e,:d,:t)"), {"id":lid,"u":user_id,"e":str(event_type)[:80],"d":str(description)[:1000],"t":datetime.utcnow().isoformat()})
-            cutoff=c.execute(text("SELECT id FROM web_logs ORDER BY id DESC LIMIT 1 OFFSET 499")).fetchone()
-            if cutoff: c.execute(text("DELETE FROM web_logs WHERE id < :id"), {"id":int(cutoff[0])})
-    except Exception as e: print("WEB LOG ERROR:",repr(e))
-
-def add_transaction(user_id: int, transaction_type: str, service_key: str, amount: int, balance_after: int, reference: str = "", description: str = ""):
-    try:
-        with prod_engine.begin() as c:
-            tid=_next_id(c,"web_transactions")
-            c.execute(text("""INSERT INTO web_transactions(id,user_id,transaction_type,service_key,amount,balance_after,reference,description,created_at)
-                             VALUES(:id,:u,:tt,:s,:a,:b,:r,:d,:t)"""), {"id":tid,"u":user_id,"tt":transaction_type,"s":service_key,"a":int(amount),"b":int(balance_after),"r":str(reference)[:120],"d":str(description)[:1000],"t":datetime.utcnow().isoformat()})
-    except Exception as e: print("TRANSACTION LOG ERROR:",repr(e))
-
-def charge_service(user_id: int, amount: int, service_key: str, description: str = "", reference: str = "") -> int:
-    amount=max(0,int(amount))
-    if amount==0: return prod_balance(user_id)
-    with prod_engine.begin() as c:
-        c.execute(text("INSERT INTO web_wallets(user_id,credits) VALUES(:u,0) ON CONFLICT(user_id) DO NOTHING"), {"u":user_id})
-        result=c.execute(text("UPDATE web_wallets SET credits=credits-:a WHERE user_id=:u AND credits>=:a"), {"a":amount,"u":user_id})
-        if result.rowcount != 1: raise HTTPException(402,"Insufficient balance")
-        new_balance=int(c.execute(text("SELECT credits FROM web_wallets WHERE user_id=:u"), {"u":user_id}).scalar() or 0)
-    add_transaction(user_id,"debit",service_key,amount,new_balance,reference,description)
-    return new_balance
-
-def add_api_transaction(client_id:int, transaction_type:str, amount:int, balance_after:int, reference:str="", description:str=""):
-    try:
-        with prod_engine.begin() as c:
-            tid=_next_id(c,"api_transactions")
-            c.execute(text("""INSERT INTO api_transactions(id,client_id,transaction_type,amount,balance_after,reference,description,created_at)
-                             VALUES(:id,:c,:tt,:a,:b,:r,:d,:t)"""), {"id":tid,"c":client_id,"tt":transaction_type,"a":int(amount),"b":int(balance_after),"r":str(reference)[:120],"d":str(description)[:1000],"t":datetime.utcnow().isoformat()})
-    except Exception as e: print("API TRANSACTION LOG ERROR:",repr(e))
-
 def save_generation(user_id: int, nid: str, filename: str, charged: int, person_name: str = "", dob: str = "", channel: str = "web"):
     """Save generation metadata for the customer/admin audit history."""
     now = datetime.utcnow().isoformat()
@@ -473,7 +380,6 @@ def save_generation(user_id: int, nid: str, filename: str, charged: int, person_
             "channel": channel, "ch": charged, "person_name": person_name,
             "dob": dob, "t": now
         })
-    add_web_log(user_id, "PDF Generation", f"Service={channel}; charged={int(charged)}; file={filename}")
 
 
 def set_default_background_db(name: str, mime: str, data_b64: str):
@@ -1659,7 +1565,6 @@ def web_login(email: str = Form(...), password: str = Form(...)):
     if not r or not r["active"] or not _verify_password(password, r["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
     token = _token(int(r["id"]), r["role"])
-    add_web_log(int(r["id"]), "Login", "Successful login")
     out = JSONResponse({"success": True, "email": r["email"], "role": r["role"]})
     out.set_cookie("web_session", token, httponly=True, secure=False, samesite="lax", max_age=86400*7)
     return out
@@ -1752,18 +1657,14 @@ def admin_web_price_get(web_session: str | None = Cookie(default=None)):
     sign_price = int(prod_setting("sign_to_server_price", prod_setting("web_price", "1")))
     birth_price = int(prod_setting("auto_birth_price", "1"))
     api_price = int(prod_setting("api_price", "1"))
-    voter_price = int(prod_setting("voter_search_price", "120"))
-    voter_match_price = int(prod_setting("voter_search_match_price", "5"))
-    voter_unlock_price = int(prod_setting("voter_search_unlock_price", "120"))
+    voter_price = int(prod_setting("voter_search_price", "1"))
     return {
         "success": True,
         "web_price": sign_price,
         "sign_to_server_price": sign_price,
         "auto_birth_price": birth_price,
         "api_price": api_price,
-        "voter_search_price": voter_price,
-        "voter_search_match_price": voter_match_price,
-        "voter_search_unlock_price": voter_unlock_price
+        "voter_search_price": voter_price
     }
 
 # ---------------------------------------------------------------------------
@@ -1886,9 +1787,7 @@ def admin_announcement_save(
 @app.post("/api/admin/price")
 def admin_web_price(
     web_price: int = Form(...),
-    voter_search_price: int = Form(120),
-    voter_search_match_price: int = Form(5),
-    voter_search_unlock_price: int = Form(120),
+    voter_search_price: int = Form(1),
     sign_to_server_price: int | None = Form(None),
     auto_birth_price: int | None = Form(None),
     api_price: int | None = Form(None),
@@ -1898,23 +1797,18 @@ def admin_web_price(
     sign_price = web_price if sign_to_server_price is None else sign_to_server_price
     birth_price = int(prod_setting("auto_birth_price", "1")) if auto_birth_price is None else auto_birth_price
     global_api_price = int(prod_setting("api_price", "1")) if api_price is None else api_price
-    if min(web_price, voter_search_price, voter_search_match_price, voter_search_unlock_price, sign_price, birth_price, global_api_price) < 0:
+    if min(web_price, voter_search_price, sign_price, birth_price, global_api_price) < 0:
         raise HTTPException(400, "Price cannot be negative")
     prod_set_setting("web_price", str(sign_price))
     prod_set_setting("sign_to_server_price", str(sign_price))
-    prod_set_setting("voter_search_price", str(voter_search_unlock_price))
-    prod_set_setting("voter_search_match_price", str(voter_search_match_price))
-    prod_set_setting("voter_search_unlock_price", str(voter_search_unlock_price))
+    prod_set_setting("voter_search_price", str(voter_search_price))
     prod_set_setting("auto_birth_price", str(birth_price))
     prod_set_setting("api_price", str(global_api_price))
-    add_web_log(None, "Pricing Update", f"Global service prices updated; voter_match={voter_search_match_price}; voter_unlock={voter_search_unlock_price}")
     return {
         "success": True,
         "web_price": sign_price,
         "sign_to_server_price": sign_price,
-        "voter_search_price": voter_search_unlock_price,
-        "voter_search_match_price": voter_search_match_price,
-        "voter_search_unlock_price": voter_search_unlock_price,
+        "voter_search_price": voter_search_price,
         "auto_birth_price": birth_price,
         "api_price": global_api_price
     }
@@ -2056,7 +1950,6 @@ def customer_submit_payment(
             }
         )
 
-    add_web_log(u["id"], "Service Purchase", f"Wallet top-up request submitted; amount={amount}")
     return {
         "success": True,
         "status": "pending",
@@ -2170,8 +2063,6 @@ def admin_approve_payment(
             }
         )
 
-    add_transaction(int(p["user_id"]), "credit", "wallet_topup", int(p["credits"]), new_balance, str(p.get("transaction_id") or ""), "bKash payment approved")
-    add_web_log(int(p["user_id"]), "Service Purchase", f"Wallet top-up approved; credits={int(p['credits'])}")
     return {
         "success": True,
         "message": "Payment approved and balance added.",
@@ -2238,14 +2129,27 @@ def customer_status(web_session: str | None = Cookie(default=None)):
         "sign_to_server_price": int(prod_setting("sign_to_server_price", prod_setting("web_price", "1"))),
         "auto_birth_price": int(prod_setting("auto_birth_price", "1")),
         "api_price": int(prod_setting("api_price", "1")),
-        "voter_search_price": int(prod_setting("voter_search_unlock_price", "120")),
-        "voter_search_match_price": int(prod_setting("voter_search_match_price", "5")),
-        "voter_search_unlock_price": int(prod_setting("voter_search_unlock_price", "120")),
+        "voter_search_price": int(prod_setting("voter_search_price", "1")),
         "bkash_number": prod_setting("bkash_number", "01925211591") or "01925211591"
     }
     # ============================================================
 # CUSTOMER MANAGEMENT
 # ============================================================
+
+@app.get("/api/admin/dbclouds-balance")
+def admin_dbclouds_balance(web_session: str | None = Cookie(default=None)):
+    """Return the locally saved last-known DB Clouds balance.
+    This endpoint never calls DB Clouds and therefore never consumes a hit.
+    """
+    require_admin(web_session)
+    raw_balance=prod_setting("dbclouds_last_balance","")
+    checked_at=prod_setting("dbclouds_last_balance_checked_at","")
+    balance=None
+    if raw_balance:
+        try: balance=int(raw_balance)
+        except (TypeError,ValueError): balance=None
+    return {"success":True,"balance":balance,"checked_at":checked_at,"source":"last_successful_search_response","live_check":False}
+
 
 @app.get("/api/admin/customers")
 def admin_customers(web_session: str | None = Cookie(default=None)):
@@ -2419,8 +2323,6 @@ def admin_adjust_customer_balance(
                 {"user_id": user_id, "credits": new_balance}
             )
 
-    add_transaction(user_id, "credit_adjustment" if amount > 0 else "debit_adjustment", "admin_balance", abs(amount), new_balance, "", "Admin manual balance adjustment")
-    add_web_log(user_id, "Balance Adjustment", f"Admin adjusted balance by {amount}; new balance={new_balance}")
     return {
         "success": True,
         "message": "Balance added successfully." if amount > 0 else "Balance deducted successfully.",
@@ -2463,62 +2365,6 @@ async def admin_delete_customer(
         "message": "Customer deleted successfully"
     }
 
-
-# ============================================================
-# CUSTOMER-SPECIFIC SERVICE PRICING
-# ============================================================
-@app.get("/api/admin/customer/{user_id}/prices")
-def admin_customer_prices(user_id:int, web_session:str|None=Cookie(default=None)):
-    require_admin(web_session)
-    with prod_engine.begin() as c:
-        user=c.execute(text("SELECT id,role FROM web_users WHERE id=:u"),{"u":user_id}).mappings().first()
-        if not user or user["role"]!="customer": raise HTTPException(404,"Customer not found")
-        rows=c.execute(text("SELECT service_key,price FROM customer_service_prices WHERE user_id=:u"),{"u":user_id}).mappings().all()
-    values={str(r["service_key"]):int(r["price"]) for r in rows}
-    keys=["sign_to_server","auto_birth","voter_search_match","voter_search_unlock"]
-    return {"success":True,"prices":{k:values.get(k,service_price(user_id,k)) for k in keys}}
-
-@app.post("/api/admin/customer/service-price")
-def admin_customer_service_price(user_id:int=Form(...), service_key:str=Form(...), price:int=Form(...), web_session:str|None=Cookie(default=None)):
-    require_admin(web_session)
-    service_key=service_key.strip(); price=int(price)
-    if service_key not in SERVICE_DEFAULT_SETTINGS: raise HTTPException(400,"Invalid service")
-    if price<0: raise HTTPException(400,"Price cannot be negative")
-    with prod_engine.begin() as c:
-        user=c.execute(text("SELECT id,role FROM web_users WHERE id=:u"),{"u":user_id}).mappings().first()
-        if not user or user["role"]!="customer": raise HTTPException(404,"Customer not found")
-        pid=_next_id(c,"customer_service_prices")
-        c.execute(text("""INSERT INTO customer_service_prices(id,user_id,service_key,price) VALUES(:id,:u,:s,:p)
-                         ON CONFLICT(user_id,service_key) DO UPDATE SET price=excluded.price"""),{"id":pid,"u":user_id,"s":service_key,"p":price})
-    add_web_log(user_id,"Pricing Update",f"Service={service_key}; price={price}")
-    return {"success":True,"service_key":service_key,"price":price}
-
-# ============================================================
-# TRANSACTION / LOG HISTORY
-# ============================================================
-@app.get("/api/customer/transactions")
-def customer_transactions(web_session:str|None=Cookie(default=None)):
-    u=require_customer(web_session)
-    with prod_engine.begin() as c:
-        rows=c.execute(text("SELECT id,transaction_type,service_key,amount,balance_after,reference,description,created_at FROM web_transactions WHERE user_id=:u ORDER BY id DESC LIMIT 100"),{"u":u["id"]}).mappings().all()
-    return {"success":True,"transactions":[dict(r) for r in rows]}
-
-@app.get("/api/admin/transactions")
-def admin_transactions(web_session:str|None=Cookie(default=None), user_id:int=0, limit:int=500):
-    require_admin(web_session); limit=max(1,min(int(limit or 500),500)); where="WHERE t.user_id=:u" if user_id else ""; params={"limit":limit}
-    if user_id: params["u"]=user_id
-    with prod_engine.begin() as c:
-        rows=c.execute(text(f"SELECT t.*,COALESCE(u.email,'') AS email,COALESCE(u.full_name,'') AS full_name FROM web_transactions t LEFT JOIN web_users u ON u.id=t.user_id {where} ORDER BY t.id DESC LIMIT :limit"),params).mappings().all()
-    return {"success":True,"transactions":[dict(r) for r in rows]}
-
-@app.get("/api/admin/log-history")
-def admin_log_history(web_session:str|None=Cookie(default=None), page:int=1, per_page:int=20):
-    require_admin(web_session); page=max(1,int(page or 1)); per_page=max(1,min(int(per_page or 20),20))
-    with prod_engine.begin() as c:
-        total=int(c.execute(text("SELECT COUNT(*) FROM web_logs")).scalar() or 0); offset=(page-1)*per_page
-        rows=c.execute(text("""SELECT l.id,l.event_type,l.description,l.created_at,l.user_id,COALESCE(u.email,'') AS email,COALESCE(u.full_name,'') AS full_name
-                              FROM web_logs l LEFT JOIN web_users u ON u.id=l.user_id ORDER BY l.id DESC LIMIT :limit OFFSET :offset"""),{"limit":per_page,"offset":offset}).mappings().all()
-    return {"success":True,"logs":[dict(r) for r in rows],"total":total,"page":page,"per_page":per_page,"pages":max(1,(total+per_page-1)//per_page)}
 
 # ============================================================
 # USER PROFILE / PASSWORD
@@ -2672,33 +2518,13 @@ def _api_usage_counts(client_id: int):
         minute = c.execute(text("SELECT COUNT(*) FROM api_requests WHERE client_id=:c AND created_at>=:s"), {"c":client_id,"s":minute_start}).scalar() or 0
     return int(monthly), int(minute)
 
-def _api_log(client_id: int, request_id: str, status: str, filename: str = "", nid: str = "", person_name: str = "", dob: str = "", processing_ms: int = 0, service_key: str = "sign_to_server_pdf"):
+def _api_log(client_id: int, request_id: str, status: str, filename: str = "", nid: str = "", person_name: str = "", dob: str = "", processing_ms: int = 0):
     with prod_engine.begin() as c:
         rid = _next_id(c, "api_requests")
         c.execute(text("""
-            INSERT INTO api_requests(id,client_id,request_id,status,filename,nid,person_name,dob,processing_ms,service_key,created_at)
-            VALUES(:id,:c,:r,:s,:f,:n,:pn,:dob,:ms,:sk,:t)
-        """), {"id":rid,"c":client_id,"r":request_id,"s":status,"f":filename,"n":nid,"pn":person_name,"dob":dob,"ms":processing_ms,"sk":service_key,"t":datetime.utcnow().isoformat()})
-
-@app.get("/api/admin/api/services")
-def admin_api_services(web_session:str|None=Cookie(default=None)):
-    require_admin(web_session)
-    with prod_engine.begin() as c: rows=c.execute(text("SELECT * FROM api_services ORDER BY id")).mappings().all()
-    return {"success":True,"services":[dict(r) for r in rows]}
-
-@app.post("/api/admin/api/services/save")
-def admin_api_service_save(service_id:str=Form(""), service_key:str=Form(...), name:str=Form(...), price:int=Form(0), active:int=Form(1), web_session:str|None=Cookie(default=None)):
-    require_admin(web_session); service_key=service_key.strip(); name=name.strip(); price=int(price)
-    if not re.fullmatch(r"[a-z0-9_]{3,100}",service_key) or not name or price<0: raise HTTPException(400,"Invalid API service")
-    with prod_engine.begin() as c:
-        if service_id:
-            sid=int(service_id); c.execute(text("UPDATE api_services SET service_key=:k,name=:n,price=:p,active=:a WHERE id=:id"),{"k":service_key,"n":name,"p":price,"a":1 if active else 0,"id":sid})
-        else:
-            sid=_next_id(c,"api_services")
-            try: c.execute(text("INSERT INTO api_services(id,service_key,name,price,active,created_at) VALUES(:id,:k,:n,:p,:a,:t)"),{"id":sid,"k":service_key,"n":name,"p":price,"a":1 if active else 0,"t":datetime.utcnow().isoformat()})
-            except Exception: raise HTTPException(409,"Service key already exists")
-    add_web_log(None,"API Pricing Update",f"API service={service_key}; price={price}")
-    return {"success":True,"id":sid}
+            INSERT INTO api_requests(id,client_id,request_id,status,filename,nid,person_name,dob,processing_ms,created_at)
+            VALUES(:id,:c,:r,:s,:f,:n,:pn,:dob,:ms,:t)
+        """), {"id":rid,"c":client_id,"r":request_id,"s":status,"f":filename,"n":nid,"pn":person_name,"dob":dob,"ms":processing_ms,"t":datetime.utcnow().isoformat()})
 
 @app.get("/api/admin/api/plans")
 def admin_api_plans(web_session: str | None = Cookie(default=None)):
@@ -2734,7 +2560,7 @@ def admin_api_clients(web_session: str | None = Cookie(default=None)):
     require_admin(web_session)
     with prod_engine.begin() as c:
         rows=c.execute(text("""
-            SELECT c.id,c.name,c.email,c.website,c.api_key_prefix,c.active,c.expires_at,c.created_at,COALESCE(c.credits,0) AS credits,
+            SELECT c.id,c.name,c.email,c.website,c.api_key_prefix,c.active,c.expires_at,c.created_at,
                    p.id AS plan_id,p.name AS plan_name,p.price,p.monthly_limit,p.rate_limit,
                    (SELECT COUNT(*) FROM api_requests r WHERE r.client_id=c.id AND r.status='success') AS total_requests,
                    (SELECT COUNT(*) FROM api_requests r WHERE r.client_id=c.id AND r.status='success' AND r.created_at>=:ms) AS month_requests
@@ -2780,26 +2606,6 @@ def admin_api_client_regenerate(client_id:int, web_session: str | None=Cookie(de
     with prod_engine.begin() as c: c.execute(text("UPDATE api_clients SET api_key_hash=:h,api_key_prefix=:p WHERE id=:id"),{"h":_api_key_hash(key),"p":key[:16]+"…","id":client_id})
     return {"success":True,"api_key":key}
 
-@app.post("/api/admin/api/clients/{client_id}/balance")
-def admin_api_client_balance(client_id:int, amount:int=Form(...), web_session:str|None=Cookie(default=None)):
-    require_admin(web_session); amount=int(amount)
-    if amount==0: raise HTTPException(400,"Amount cannot be zero")
-    with prod_engine.begin() as c:
-        row=c.execute(text("SELECT credits FROM api_clients WHERE id=:id"),{"id":client_id}).fetchone()
-        if not row: raise HTTPException(404,"API client not found")
-        new=max(0,int(row[0] or 0)+amount); c.execute(text("UPDATE api_clients SET credits=:c WHERE id=:id"),{"c":new,"id":client_id})
-    add_api_transaction(client_id,"credit_adjustment" if amount>0 else "debit_adjustment",abs(amount),new,"","Admin API balance adjustment")
-    add_web_log(None,"API Balance",f"API client={client_id}; adjustment={amount}; balance={new}")
-    return {"success":True,"balance":new}
-
-@app.get("/api/admin/api/transactions")
-def admin_api_transactions(web_session:str|None=Cookie(default=None), client_id:int=0, limit:int=500):
-    require_admin(web_session); limit=max(1,min(int(limit or 500),500)); where="WHERE t.client_id=:c" if client_id else ""; params={"limit":limit}
-    if client_id: params["c"]=client_id
-    with prod_engine.begin() as c:
-        rows=c.execute(text(f"SELECT t.*,c.name AS client_name FROM api_transactions t JOIN api_clients c ON c.id=t.client_id {where} ORDER BY t.id DESC LIMIT :limit"),params).mappings().all()
-    return {"success":True,"transactions":[dict(r) for r in rows]}
-
 @app.get("/api/admin/api/requests")
 def admin_api_requests(web_session: str | None = Cookie(default=None), client_id: int = 0, limit: int = 500):
     require_admin(web_session); limit=max(1,min(limit,1000))
@@ -2817,7 +2623,7 @@ def admin_api_requests(web_session: str | None = Cookie(default=None), client_id
 def api_status(x_api_key: str | None = Header(default=None, alias="X-API-Key"), authorization: str | None = Header(default=None)):
     client=_api_client_from_request(x_api_key or authorization)
     monthly,minute=_api_usage_counts(client["id"])
-    return {"success":True,"client":client["name"],"plan":client["plan_name"],"balance":int(client.get("credits") or 0),"monthly_limit":client["monthly_limit"],"monthly_used":monthly,"remaining":max(0,client["monthly_limit"]-monthly),"rate_limit_per_minute":client["rate_limit"],"requests_last_minute":minute}
+    return {"success":True,"client":client["name"],"plan":client["plan_name"],"monthly_limit":client["monthly_limit"],"monthly_used":monthly,"remaining":max(0,client["monthly_limit"]-monthly),"rate_limit_per_minute":client["rate_limit"],"requests_last_minute":minute}
 
 @app.post("/api/v1/generate-pdf")
 async def api_generate_pdf(file: UploadFile=File(...), x_api_key: str | None = Header(default=None, alias="X-API-Key"), authorization: str | None = Header(default=None)):
@@ -2830,19 +2636,6 @@ async def api_generate_pdf(file: UploadFile=File(...), x_api_key: str | None = H
     content=await file.read()
     if len(content)>max_bytes: raise HTTPException(413,f"Source PDF must be {client['max_file_mb']} MB or smaller")
     request_id="req_"+secrets.token_urlsafe(12)
-    with prod_engine.begin() as c:
-        svc=c.execute(text("SELECT price,active FROM api_services WHERE service_key='sign_to_server_pdf'")).mappings().first()
-    if not svc or not svc["active"]:
-        raise HTTPException(503,"Sign to Server API service is inactive")
-    service_price_api=int(svc["price"] or 0)
-    api_balance=int(client.get("credits") or 0)
-    if service_price_api>0:
-        with prod_engine.begin() as c:
-            result=c.execute(text("UPDATE api_clients SET credits=credits-:a WHERE id=:id AND credits>=:a"),{"a":service_price_api,"id":client["id"]})
-            if result.rowcount!=1: raise HTTPException(402,"API balance is insufficient")
-            api_balance=int(c.execute(text("SELECT credits FROM api_clients WHERE id=:id"),{"id":client["id"]}).scalar() or 0)
-        add_api_transaction(int(client["id"]),"debit",service_price_api,api_balance,request_id,"Sign to Server API request charge")
-        add_web_log(None,"API Service",f"API client={client['name']}; service=sign_to_server_pdf; charged={service_price_api}")
     started=_time.perf_counter()
     try:
         fd,temp=tempfile.mkstemp(suffix=".pdf"); os.close(fd); Path(temp).write_bytes(content)
@@ -2851,65 +2644,16 @@ async def api_generate_pdf(file: UploadFile=File(...), x_api_key: str | None = H
         out=make_pdf(d)
         ms=int((_time.perf_counter()-started)*1000)
         person_name=str(d.get("name_bn") or d.get("name_en") or "").strip(); dob=str(d.get("dob") or "").strip(); nid=str(d.get("national_id") or "").strip()
-        _api_log(client["id"],request_id,"success",out.name,nid,person_name,dob,ms,"sign_to_server_pdf")
+        _api_log(client["id"],request_id,"success",out.name,nid,person_name,dob,ms)
     except Exception as e:
         ms=int((_time.perf_counter()-started)*1000)
-        try: _api_log(client["id"],request_id,"failed",processing_ms=ms,service_key="sign_to_server_pdf")
+        try: _api_log(client["id"],request_id,"failed",processing_ms=ms)
         except Exception: pass
-        if service_price_api>0:
-            with prod_engine.begin() as c: c.execute(text("UPDATE api_clients SET credits=credits+:a WHERE id=:id"),{"a":service_price_api,"id":client["id"]})
-            add_api_transaction(int(client["id"]),"refund",service_price_api,api_balance+service_price_api,request_id,"Refund after failed API request")
         raise
     finally:
         try: os.remove(temp)
         except Exception: pass
-    return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"X-Request-ID":request_id,"X-API-Client":client["name"],"X-API-Charged":str(service_price_api),"X-API-Balance":str(api_balance)},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
-
-# ============================================================
-# API — Auto Birth PDF
-# ============================================================
-@app.post("/api/v1/auto-birth-pdf")
-async def api_auto_birth_pdf(
-    birth_reg_no:str=Form(...), dob:str=Form(...), date_of_registration:str=Form(""), date_of_issuance:str=Form(""),
-    name_bn:str=Form(""), name_en:str=Form(""), father:str=Form(""), father_en:str=Form(""), mother:str=Form(""), mother_en:str=Form(""),
-    nationality:str=Form("Bangladeshi"), father_nationality_bn:str=Form(""), father_nationality_en:str=Form(""),
-    mother_nationality_bn:str=Form(""), mother_nationality_en:str=Form(""), dob_words:str=Form(""), sex:str=Form(""),
-    birth_place:str=Form(""), birth_place_bn:str=Form(""), birth_place_en:str=Form(""), union_en:str=Form(""), upazila_district_en:str=Form(""),
-    permanent_bn:str=Form(""), permanent_en:str=Form(""), x_api_key:str|None=Header(default=None,alias="X-API-Key"), authorization:str|None=Header(default=None)
-):
-    client=_api_client_from_request(x_api_key or authorization)
-    with prod_engine.begin() as c:
-        svc=c.execute(text("SELECT price,active FROM api_services WHERE service_key='auto_birth_pdf'")).mappings().first()
-    if not svc or not svc["active"]: raise HTTPException(503,"Auto Birth API service is inactive")
-    if not re.fullmatch(r"\d{17}",birth_reg_no.strip()): raise HTTPException(400,"Birth Registration Number must contain exactly 17 digits")
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}",dob.strip()): raise HTTPException(400,"Date of Birth must be YYYY-MM-DD")
-    price=int(svc["price"] or 0); request_id="req_"+secrets.token_urlsafe(12); api_balance=int(client.get("credits") or 0)
-    if price>0:
-        with prod_engine.begin() as c:
-            result=c.execute(text("UPDATE api_clients SET credits=credits-:a WHERE id=:id AND credits>=:a"),{"a":price,"id":client["id"]})
-            if result.rowcount!=1: raise HTTPException(402,"API balance is insufficient")
-            api_balance=int(c.execute(text("SELECT credits FROM api_clients WHERE id=:id"),{"id":client["id"]}).scalar() or 0)
-        add_api_transaction(int(client["id"]),"debit",price,api_balance,request_id,"Auto Birth API request charge")
-        add_web_log(None,"API Service",f"API client={client['name']}; service=auto_birth_pdf; charged={price}")
-    bg_b64=""; bg_mime="image/jpeg"
-    try:
-        saved_bg=get_birth_background_db()
-        if saved_bg: bg_b64=saved_bg.get("data","") or ""; bg_mime=saved_bg.get("mime","image/jpeg") or "image/jpeg"
-    except Exception: pass
-    if not dob_words.strip(): dob_words=birth_dob_in_words(dob.strip())
-    d=locals().copy(); d.pop("x_api_key",None); d.pop("authorization",None); d.pop("client",None); d.pop("svc",None); d.pop("price",None); d.pop("api_balance",None); d.pop("request_id",None); d.pop("bg_b64",None); d.pop("bg_mime",None)
-    try:
-        out=make_birth_reference_pdf(d,bg_b64,bg_mime)
-        ms=0; _api_log(int(client["id"]),request_id,"success",out.name,birth_reg_no.strip(),name_bn.strip() or name_en.strip(),dob.strip(),ms,"auto_birth_pdf")
-        add_web_log(None,"API Service",f"API client={client['name']}; service=auto_birth_pdf; completed")
-    except Exception:
-        try: _api_log(int(client["id"]),request_id,"failed",processing_ms=0,service_key="auto_birth_pdf")
-        except Exception: pass
-        if price>0:
-            with prod_engine.begin() as c: c.execute(text("UPDATE api_clients SET credits=credits+:a WHERE id=:id"),{"a":price,"id":client["id"]})
-            add_api_transaction(int(client["id"]),"refund",price,api_balance+price,request_id,"Refund after failed Auto Birth API request")
-        raise
-    return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"X-Request-ID":request_id,"X-API-Client":client["name"],"X-API-Charged":str(price),"X-API-Balance":str(api_balance)},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
+    return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"X-Request-ID":request_id,"X-API-Client":client["name"]},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
 
 # ============================================================
 # DB Clouds — Voter Search All BD
@@ -3018,7 +2762,7 @@ def voter_location_upazilas(
     if not district:
         raise HTTPException(400, "District is required")
 
-    raw = _dbclouds_public_location_request("upazilas/" + quote(district, safe=""))
+    raw = _dbclouds_public_location_request("upazilas/" + district)
     items = _location_items(raw, ("upazilas",))
     names = []
     seen = set()
@@ -3085,6 +2829,42 @@ def _dbclouds_results(raw):
     return []
 
 
+def _dbclouds_extract_hits_remaining(raw):
+    """Read remaining DB Clouds hits from the paid search response only.
+    No extra request is made, so this cannot consume another provider credit.
+    """
+    if not isinstance(raw, dict):
+        return None
+    keys=("hits_remaining","hit_remaining","remaining_hits","credits_remaining","remaining_credit","balance")
+    for key in keys:
+        value=raw.get(key)
+        if value is not None:
+            try: return int(value)
+            except (TypeError,ValueError): pass
+    for parent_key in ("meta","usage","account","quota"):
+        parent=raw.get(parent_key)
+        if isinstance(parent,dict):
+            for key in keys:
+                value=parent.get(key)
+                if value is not None:
+                    try: return int(value)
+                    except (TypeError,ValueError): pass
+    return None
+
+
+def _save_dbclouds_last_balance(raw):
+    """Persist the last balance reported by a real DB Clouds search response."""
+    remaining=_dbclouds_extract_hits_remaining(raw)
+    if remaining is None: return None
+    checked_at=datetime.utcnow().isoformat()
+    try:
+        prod_set_setting("dbclouds_last_balance",str(remaining))
+        prod_set_setting("dbclouds_last_balance_checked_at",checked_at)
+    except Exception as e:
+        print("DBCLOUDS BALANCE SAVE ERROR:",repr(e))
+    return remaining
+
+
 def _normalize_voter_result(item: dict) -> dict:
     def pick(*keys):
         for key in keys:
@@ -3107,6 +2887,18 @@ def _normalize_voter_result(item: dict) -> dict:
         "gender": pick("gender", "sex"),
         "address": pick("address", "full_address"),
     }
+
+
+def _mask_last_two(value: str) -> str:
+    """Show only the last two characters of a person's name in search preview."""
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    chars = list(value)
+    if len(chars) <= 2:
+        return "*" * len(chars)
+    return "*" * (len(chars) - 2) + "".join(chars[-2:])
+
 
 def _mask_voter_number(value: str) -> str:
     """Hide every voter-number digit in the locked search preview."""
@@ -3135,9 +2927,7 @@ def voter_search_config(web_session: str | None = Cookie(default=None)):
     return {
         "success": True,
         "configured": _dbclouds_configured(),
-        "price": int(prod_setting("voter_search_unlock_price", "120")),
-        "match_price": int(prod_setting("voter_search_match_price", "5")),
-        "unlock_price": int(prod_setting("voter_search_unlock_price", "120")),
+        "price": int(prod_setting("voter_search_price", "1")),
     }
 
 
@@ -3170,25 +2960,21 @@ async def voter_search_all_bd(
     # Do not send empty optional parameters when using the GET API.
     payload = {k: v for k, v in payload.items() if v}
     raw = _dbclouds_request(payload)
+    # DB Clouds includes hits_remaining in this same paid search response.
+    # Save it locally; do NOT make a second request just to check balance.
+    _save_dbclouds_last_balance(raw)
     items = _dbclouds_results(raw)
     normalized = [_normalize_voter_result(x) for x in items if isinstance(x, dict)]
     normalized = [x for x in normalized if any(x.values())]
-    search_charge=0; new_balance=prod_balance(u["id"])
-    if normalized and u.get("role")!="admin":
-        search_charge=service_price(u["id"],"voter_search_match")
-        new_balance=charge_service(u["id"],search_charge,"voter_search_match","Matching voter search result found")
-    add_web_log(u["id"],"Voter Search","Matching result found" if normalized else "No matching result; no voter query/result data stored in log")
     previews = []
     for result in normalized:
         sid = _save_voter_search(u["id"], payload, result)
         previews.append({
             "result_id": sid,
-            # Search preview: name are fully visible.
-            "name": result.get("name", ""),
-
-            # Search preview: father/spouse and mother names are fully visible.
-            "father_name": result.get("father_name", ""),
-            "mother_name": result.get("mother_name", ""),
+            # Search preview: expose only the last 2 characters of names.
+            "name": _mask_last_two(result.get("name", "")),
+            "father_name": _mask_last_two(result.get("father_name", "")),
+            "mother_name": _mask_last_two(result.get("mother_name", "")),
 
             # Search preview: voter number is completely masked.
             "voter_no": _mask_voter_number(result.get("voter_no", "")),
@@ -3201,7 +2987,7 @@ async def voter_search_all_bd(
             "postcode": result.get("postcode", ""),
             "unlocked": False,
         })
-    return {"success": True, "count": len(previews), "results": previews, "charged": search_charge, "balance": new_balance}
+    return {"success": True, "count": len(previews), "results": previews}
 
 
 @app.post("/api/customer/voter-search/{search_id}/unlock")
@@ -3217,8 +3003,8 @@ def voter_search_unlock(
     result = json.loads(str(row["result_json"] or "{}"))
     if int(row["unlocked"] or 0):
         return {"success": True, "result_id": search_id, "result": result, "balance": prod_balance(u["id"])}
-    price = 0 if u.get("role") == "admin" else service_price(u["id"], "voter_search_unlock")
-    new_balance = prod_balance(u["id"]) if price == 0 else charge_service(u["id"], price, "voter_search_unlock", "Full voter details unlock", str(search_id))
+    price = 0 if u.get("role") == "admin" else int(prod_setting("voter_search_price", "1"))
+    new_balance = prod_balance(u["id"]) if price == 0 else prod_charge(u["id"], price)
     try:
         with prod_engine.begin() as c:
             c.execute(text("UPDATE voter_searches SET unlocked=1,charged=:ch WHERE id=:id AND user_id=:u"), {"ch": price, "id": search_id, "u": u["id"]})
@@ -3227,7 +3013,6 @@ def voter_search_unlock(
             with prod_engine.begin() as c:
                 c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"), {"a": price, "u": u["id"]})
         raise
-    add_web_log(u["id"], "Service Purchase", f"Voter Search Full Details unlock; charged={price}")
     return {"success": True, "result_id": search_id, "result": result, "balance": new_balance, "charged": price}
 
 
@@ -3264,8 +3049,8 @@ async def customer_birth_reference(
         raise HTTPException(400,"Birth Registration Number must contain exactly 17 digits")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", dob.strip()):
         raise HTTPException(400,"Date of Birth must be YYYY-MM-DD")
-    price=0 if u.get("role")=="admin" else service_price(u["id"],"auto_birth")
-    new_balance=prod_balance(u["id"]) if u.get("role")=="admin" else charge_service(u["id"],price,"auto_birth","Auto Birth PDF generation charge")
+    price=0 if u.get("role")=="admin" else int(prod_setting("auto_birth_price", "1"))
+    new_balance=prod_balance(u["id"]) if u.get("role")=="admin" else prod_charge(u["id"],price)
     # Customers never upload a background. The admin-selected Auto Birth
     # background is used until the admin changes it. If an older deployment
     # does not yet have the optional background table, PDF generation should
@@ -3298,7 +3083,6 @@ async def customer_birth_reference(
                     text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
                     {"a": price, "u": u["id"]}
                 )
-            add_transaction(u["id"], "refund", "auto_birth", price, prod_balance(u["id"]), "", "Refund after Auto Birth PDF failure")
         raise
     except Exception as e:
         print("AUTO BIRTH PDF ERROR:", repr(e))
@@ -3308,7 +3092,6 @@ async def customer_birth_reference(
                     text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
                     {"a": price, "u": u["id"]}
                 )
-            add_transaction(u["id"], "refund", "auto_birth", price, prod_balance(u["id"]), "", "Refund after Auto Birth PDF failure")
         raise HTTPException(500, f"Auto Birth PDF generation failed: {str(e)[-600:]}")
     return FileResponse(out,media_type="application/pdf",filename=out.name,headers={"Content-Disposition":f'attachment; filename="{out.name}"',"X-PDF-Charged":str(price),"X-PDF-Balance":str(new_balance)},background=BackgroundTask(lambda p=out:p.unlink(missing_ok=True)))
 
@@ -3334,12 +3117,12 @@ async def customer_generate(
     # decode/write from every PDF generation request.
     # Admin can generate PDFs directly without any balance/credit charge.
     # Customers continue to use the normal configured PDF price.
-    price = 0 if u.get("role") == "admin" else service_price(u["id"],"sign_to_server")
+    price = 0 if u.get("role") == "admin" else int(prod_setting("sign_to_server_price", prod_setting("web_price", "1")))
     nid = str(d.get("national_id", "")).strip()
     if not nid:
         raise HTTPException(400, "NID number is required")
 
-    new_balance = prod_balance(u["id"]) if u.get("role") == "admin" else charge_service(u["id"], price, "sign_to_server", "Sign to Server PDF generation charge")
+    new_balance = prod_balance(u["id"]) if u.get("role") == "admin" else prod_charge(u["id"], price)
     d["qr_b64"] = make_qr(
         d.get("name_en", ""),
         d.get("national_id", ""),
@@ -3356,13 +3139,11 @@ async def customer_generate(
             channel="admin" if u.get("role") == "admin" else "web"
         )
     except Exception:
-        if price:
-            with prod_engine.begin() as c:
-                c.execute(
-                    text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
-                    {"a": price, "u": u["id"]}
-                )
-            add_transaction(u["id"], "refund", "sign_to_server", price, prod_balance(u["id"]), "", "Refund after Sign to Server PDF failure")
+        with prod_engine.begin() as c:
+            c.execute(
+                text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"),
+                {"a": price, "u": u["id"]}
+            )
         raise
 
     return FileResponse(

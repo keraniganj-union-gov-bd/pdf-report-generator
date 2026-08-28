@@ -274,6 +274,12 @@ def prod_init():
             )
         """))
         c.execute(text("""
+            CREATE TABLE IF NOT EXISTS web_logs (
+                id INTEGER PRIMARY KEY, user_id INTEGER, event_type VARCHAR(80) NOT NULL,
+                description TEXT NOT NULL DEFAULT '', created_at VARCHAR(40) NOT NULL
+            )
+        """))
+        c.execute(text("""
             CREATE TABLE IF NOT EXISTS voter_searches (
                 id INTEGER PRIMARY KEY,
                 user_id INTEGER NOT NULL,
@@ -367,6 +373,21 @@ def prod_charge(user_id: int, amount: int):
         c.execute(text("UPDATE web_wallets SET credits=:b WHERE user_id=:u"), {"b": new, "u": user_id})
         return new
 
+def add_web_log(user_id: int | None, event_type: str, description: str = ""):
+    """Admin audit log; retain only the newest 500 events."""
+    try:
+        with prod_engine.begin() as c:
+            lid = _next_id(c, "web_logs")
+            c.execute(text("INSERT INTO web_logs(id,user_id,event_type,description,created_at) VALUES(:id,:u,:e,:d,:t)"), {
+                "id": lid, "u": user_id, "e": str(event_type)[:80],
+                "d": str(description)[:1000], "t": datetime.utcnow().isoformat()
+            })
+            # Hard cap: keep exactly the newest 500 records.
+            c.execute(text("DELETE FROM web_logs WHERE id NOT IN (SELECT id FROM web_logs ORDER BY id DESC LIMIT 500)"))
+    except Exception as e:
+        print("WEB LOG ERROR:", repr(e))
+
+
 def save_generation(user_id: int, nid: str, filename: str, charged: int, person_name: str = "", dob: str = "", channel: str = "web"):
     """Save generation metadata for the customer/admin audit history."""
     now = datetime.utcnow().isoformat()
@@ -380,6 +401,7 @@ def save_generation(user_id: int, nid: str, filename: str, charged: int, person_
             "channel": channel, "ch": charged, "person_name": person_name,
             "dob": dob, "t": now
         })
+    add_web_log(user_id, "PDF Generation", f"PDF created; service={channel}; charged={int(charged)}; filename={filename}; NID={nid}")
 
 
 def set_default_background_db(name: str, mime: str, data_b64: str):
@@ -1563,8 +1585,10 @@ def web_login(email: str = Form(...), password: str = Form(...)):
             "SELECT id,email,password_hash,role,active FROM web_users WHERE email=:e"
         ), {"e": email}).mappings().first()
     if not r or not r["active"] or not _verify_password(password, r["password_hash"]):
+        add_web_log(None, "Login Failed", f"Email={email}")
         raise HTTPException(401, "Invalid email or password")
     token = _token(int(r["id"]), r["role"])
+    add_web_log(int(r["id"]), "Login", "Successful login")
     out = JSONResponse({"success": True, "email": r["email"], "role": r["role"]})
     out.set_cookie("web_session", token, httponly=True, secure=False, samesite="lax", max_age=86400*7)
     return out
@@ -1626,6 +1650,8 @@ def web_register(
             {"u": uid}
         )
 
+    add_web_log(int(uid), "Registration", "New customer account created")
+    add_web_log(int(uid), "Login", "Automatic login after registration")
     token = _token(int(uid), "customer")
     out = JSONResponse({
         "success": True,
@@ -1804,6 +1830,7 @@ def admin_web_price(
     prod_set_setting("voter_search_price", str(voter_search_price))
     prod_set_setting("auto_birth_price", str(birth_price))
     prod_set_setting("api_price", str(global_api_price))
+    add_web_log(None, "Pricing Update", f"Sign={sign_price}; Voter Search={voter_search_price}; Auto Birth={birth_price}; API={global_api_price}")
     return {
         "success": True,
         "web_price": sign_price,
@@ -1950,6 +1977,7 @@ def customer_submit_payment(
             }
         )
 
+    add_web_log(u["id"], "Purchase", f"bKash payment submitted; amount={amount}; transaction_id={transaction_id}; status=pending")
     return {
         "success": True,
         "status": "pending",
@@ -2063,6 +2091,7 @@ def admin_approve_payment(
             }
         )
 
+    add_web_log(int(p["user_id"]), "Purchase Approved", f"bKash payment approved; payment_id={payment_id}; amount={p['amount']}; credits={p['credits']}")
     return {
         "success": True,
         "message": "Payment approved and balance added.",
@@ -2104,6 +2133,7 @@ def admin_reject_payment(
             }
         )
 
+    add_web_log(int(p["user_id"]), "Purchase Rejected", f"bKash payment rejected; payment_id={payment_id}")
     return {"success": True, "message": "Payment request rejected."}
 
 
@@ -2308,6 +2338,7 @@ def admin_adjust_customer_balance(
                 {"user_id": user_id, "credits": new_balance}
             )
 
+    add_web_log(int(user_id), "Balance Adjustment", f"Admin adjusted balance by {amount}; new balance={new_balance}")
     return {
         "success": True,
         "message": "Balance added successfully." if amount > 0 else "Balance deducted successfully.",
@@ -2954,6 +2985,7 @@ async def voter_search_all_bd(
     items = _dbclouds_results(raw)
     normalized = [_normalize_voter_result(x) for x in items if isinstance(x, dict)]
     normalized = [x for x in normalized if any(x.values())]
+    add_web_log(u["id"], "Voter Search", f"Search performed; results={len(normalized)}; district={district}; upazila={upazila}")
     previews = []
     for result in normalized:
         sid = _save_voter_search(u["id"], payload, result)
@@ -3003,6 +3035,7 @@ def voter_search_unlock(
             with prod_engine.begin() as c:
                 c.execute(text("UPDATE web_wallets SET credits=credits+:a WHERE user_id=:u"), {"a": price, "u": u["id"]})
         raise
+    add_web_log(u["id"], "Service Purchase", f"Voter Search Full Details unlock; charged={price}; result_id={search_id}")
     return {"success": True, "result_id": search_id, "result": result, "balance": new_balance, "charged": price}
 
 
@@ -3173,6 +3206,22 @@ def admin_generation_history(
             LIMIT :limit
         """), {"limit": limit}).mappings().all()
     return {"success": True, "history": [dict(r) for r in rows]}
+
+
+@app.get("/api/admin/log-history")
+def admin_log_history(web_session: str | None = Cookie(default=None), page: int = 1, per_page: int = 20):
+    require_admin(web_session)
+    page = max(1, int(page or 1)); per_page = max(1, min(int(per_page or 20), 20))
+    with prod_engine.begin() as c:
+        total = int(c.execute(text("SELECT COUNT(*) FROM web_logs")).scalar() or 0)
+        offset = (page - 1) * per_page
+        rows = c.execute(text("""
+            SELECT l.id,l.event_type,l.description,l.created_at,l.user_id,
+                   COALESCE(u.email,'') AS email,COALESCE(u.full_name,'') AS full_name
+            FROM web_logs l LEFT JOIN web_users u ON u.id=l.user_id
+            ORDER BY l.id DESC LIMIT :limit OFFSET :offset
+        """), {"limit": per_page, "offset": offset}).mappings().all()
+    return {"success": True, "logs": [dict(r) for r in rows], "total": total, "page": page, "per_page": per_page, "pages": max(1, (total + per_page - 1)//per_page)}
 
 
 @app.get("/api/customer/history")

@@ -2838,15 +2838,15 @@ def _normalize_voter_result(item: dict) -> dict:
     }
 
 
-def _mask_last_two(value: str) -> str:
-    """Show only the last two characters of a person's name in search preview."""
+def _mask_name_last_six(value: str) -> str:
+    """Search preview: mask the name except for its last 6 characters."""
     value = str(value or "").strip()
     if not value:
         return ""
     chars = list(value)
-    if len(chars) <= 2:
+    if len(chars) <= 6:
         return "*" * len(chars)
-    return "*" * (len(chars) - 2) + "".join(chars[-2:])
+    return "*" * (len(chars) - 6) + "".join(chars[-6:])
 
 
 def _mask_voter_number(value: str) -> str:
@@ -2917,10 +2917,10 @@ async def voter_search_all_bd(
         sid = _save_voter_search(u["id"], payload, result)
         previews.append({
             "result_id": sid,
-            # Search preview: name shows only the last 2 characters.
-            "name": _mask_last_two(result.get("name", "")),
+            # Search preview: name shows only its last 6 characters.
+            "name": _mask_name_last_six(result.get("name", "")),
 
-            # Search preview: father/spouse and mother names are shown fully.
+            # Search preview: father/spouse and mother names are fully visible.
             "father_name": result.get("father_name", ""),
             "mother_name": result.get("mother_name", ""),
 

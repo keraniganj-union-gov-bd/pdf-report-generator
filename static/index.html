@@ -523,7 +523,17 @@ function renderVoterResults(results){
     }
     return `<article class="voter-card" id="voter-card-${p.result_id}">
       <h3>Result #${i+1}</h3>
-      <div class="voter-preview">${voterField('নাম',p.name)}${voterField('ভোটার নম্বর',p.voter_no)}${voterField('জেলা',p.district)}${voterField('উপজেলা',p.upazila)}</div>
+      <div class="voter-preview">
+        ${voterField('নাম',p.name)}
+        ${voterField('পিতা/স্বামী',p.father_name)}
+        ${voterField('মাতা',p.mother_name)}
+        ${voterField('ভোটার নম্বর',p.voter_no)}
+        ${voterField('জেলা',p.district)}
+        ${voterField('উপজেলা',p.upazila)}
+        ${voterField('গ্রাম',p.village)}
+        ${voterField('ডাকঘর',p.post_office)}
+        ${voterField('পোস্ট কোড',p.postcode)}
+      </div>
       <div class="voter-actions"><button class="btn voter-unlock" onclick="unlockVoterResult(${p.result_id})">🔓 Full Details Unlock</button></div>
     </article>`;
   }).join("");

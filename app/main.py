@@ -11,7 +11,7 @@ from starlette.background import BackgroundTask
 from fastapi.staticfiles import StaticFiles
 import subprocess, time, shutil, platform, secrets, hashlib, hmac, time as _time
 from typing import Optional
-from urllib.parse import urlencode, urlsplit, quote
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -2747,9 +2747,7 @@ def voter_location_upazilas(
     if not district:
         raise HTTPException(400, "District is required")
 
-    raw = _dbclouds_public_location_request(
-    "upazilas/" + quote(district, safe="")
-)
+    raw = _dbclouds_public_location_request("upazilas/" + district)
     items = _location_items(raw, ("upazilas",))
     names = []
     seen = set()
@@ -2840,11 +2838,21 @@ def _normalize_voter_result(item: dict) -> dict:
     }
 
 
+def _mask_last_two(value: str) -> str:
+    """Show only the last two characters of a person's name in search preview."""
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    chars = list(value)
+    if len(chars) <= 2:
+        return "*" * len(chars)
+    return "*" * (len(chars) - 2) + "".join(chars[-2:])
+
+
 def _mask_voter_number(value: str) -> str:
-    value = str(value or "")
-    if len(value) <= 4:
-        return "••••" if value else ""
-    return "•" * (len(value) - 4) + value[-4:]
+    """Hide every voter-number digit in the locked search preview."""
+    value = str(value or "").strip()
+    return "*" * len(value) if value else ""
 
 
 def _save_voter_search(user_id: int, query: dict, result: dict) -> int:
@@ -2909,10 +2917,20 @@ async def voter_search_all_bd(
         sid = _save_voter_search(u["id"], payload, result)
         previews.append({
             "result_id": sid,
-            "name": result.get("name", ""),
+            # Search preview: expose only the last 2 characters of names.
+            "name": _mask_last_two(result.get("name", "")),
+            "father_name": _mask_last_two(result.get("father_name", "")),
+            "mother_name": _mask_last_two(result.get("mother_name", "")),
+
+            # Search preview: voter number is completely masked.
             "voter_no": _mask_voter_number(result.get("voter_no", "")),
+
+            # Location fields remain fully visible.
             "district": result.get("district", "") or district,
             "upazila": result.get("upazila", "") or upazila,
+            "village": result.get("village", ""),
+            "post_office": result.get("post_office", ""),
+            "postcode": result.get("postcode", ""),
             "unlocked": False,
         })
     return {"success": True, "count": len(previews), "results": previews}
